@@ -1,11 +1,35 @@
 node_modules/
+
+# Logs and local databases
 *.log
 *.db
-.DS_Store
-docs/superpowers/
 
-# Personal config (landing page patterns, etc.) — never push to GitHub
+# Local environment and personal config — never push to GitHub
+.env
+.env.*
+!.env.example
 extension/config.local.js
 
-# Local Tab Harbor exports may contain personal browsing metadata
-tab-harbor-config-*.json
+# Local Tab Harbor/Tabulor exports may contain personal browsing metadata
+tab*-config-*.json
+
+# Chrome package artifacts and signing keys
+*.crx
+*.pem
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE and temporary files
+.idea/
+*.swp
+*.swo
+*.tmp
+*.bak
+*~
+
+# Local development tools
+/docs/superpowers/
+/.pi/
