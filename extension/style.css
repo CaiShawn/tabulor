@@ -52,6 +52,8 @@ body::before {
   padding: 48px 32px 72px;
 }
 
+.suppress-card-animation .mission-card { animation: none; }
+
 h2, .mission-name, .empty-title {
   font-family: inherit;
   font-weight: 400;
@@ -112,7 +114,39 @@ h2, .mission-name, .empty-title {
 .status-bar, .mission-meta { display: none; }
 .mission-content { width: 100%; padding: 18px; }
 .mission-top { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 13px; }
-.mission-name { margin-right: auto; font-size: 18px; }
+.mission-title { display: flex; min-width: 0; max-width: 100%; margin-right: auto; align-items: center; gap: 4px; }
+.mission-name { min-width: 0; overflow: hidden; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
+
+.group-rename-btn {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: var(--muted);
+  background: transparent;
+  opacity: .35;
+  cursor: pointer;
+  flex: none;
+  transition: opacity .15s, color .15s, background .15s;
+}
+.group-rename-btn:hover, .group-rename-btn:focus-visible { color: var(--ink); background: var(--line); opacity: 1; }
+.group-rename-btn svg { width: 12px; height: 12px; }
+
+.group-name-input {
+  width: 190px;
+  max-width: 100%;
+  height: 28px;
+  padding: 3px 7px;
+  border: 1px solid var(--amber);
+  border-radius: 5px;
+  outline: 0;
+  color: var(--ink);
+  background: var(--elevated);
+  font-size: 16px;
+  box-shadow: 0 0 0 2px rgba(200, 113, 58, .1);
+}
 
 .open-tabs-badge {
   display: inline-flex;
@@ -246,23 +280,6 @@ h2, .mission-name, .empty-title {
 
 
 
-.toast {
-  position: fixed;
-  z-index: 100;
-  left: 50%;
-  bottom: 28px;
-  padding: 10px 16px;
-  border-radius: 7px;
-  color: white;
-  background: var(--ink);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
-  opacity: 0;
-  transform: translate(-50%, 12px);
-  transition: .2s;
-  pointer-events: none;
-  font-size: 12px;
-}
-.toast.visible { opacity: 1; transform: translate(-50%, 0); }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }
 

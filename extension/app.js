@@ -1,17 +1,35 @@
 /* Tabulor — new-tab dashboard, no server or build step. */
 'use strict';
 
+const MAX_NAME_LENGTH = 50;
+const HOME_PAGES_KEY = '__landing-pages__';
+const LOCAL_FILES_KEY = 'local-files';
+const LANDING_RULES = [
+  { hostname: 'mail.google.com', test: (_path, url) => !/#(inbox|sent|search)\//.test(url) },
+  { hostname: 'x.com', pathExact: ['/home'] },
+  { hostname: 'www.linkedin.com', pathExact: ['/'] },
+  { hostname: 'github.com', pathExact: ['/'] },
+  { hostname: 'www.youtube.com', pathExact: ['/'] },
+  ...(typeof LOCAL_LANDING_PAGE_PATTERNS === 'undefined' ? [] : LOCAL_LANDING_PAGE_PATTERNS),
+];
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const app = $('#app');
 
-const state = {
+const dataState = {
   tabs: [],
-  groups: [],
+  customGroupNames: {},
   saved: [],
+  theme: null,
+};
+
+const uiState = {
+  editingKey: null,
+  editingDraft: '',
   archiveOpen: false,
   archiveQuery: '',
-  theme: null,
+  firstRender: true,
 };
 
 const FRIENDLY = {
@@ -28,12 +46,13 @@ const FRIENDLY = {
   'figma.com': 'Figma', 'app.slack.com': 'Slack', 'discord.com': 'Discord',
   'en.wikipedia.org': 'Wikipedia', 'open.spotify.com': 'Spotify', 'developer.mozilla.org': 'MDN',
   'arxiv.org': 'arXiv', 'huggingface.co': 'Hugging Face', 'producthunt.com': 'Product Hunt',
-  'www.xiaohongshu.com': 'RedNote', 'feishu.cn': 'Feishu', 'www.feishu.cn': 'Feishu', 'local-files': 'Local Files',
+  'www.xiaohongshu.com': 'RedNote', 'feishu.cn': 'Feishu', 'www.feishu.cn': 'Feishu', [LOCAL_FILES_KEY]: 'Local Files',
 };
 
 const ICONS = {
   tabs: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.25V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18V8.25M3 8.25h18M3 8.25V6a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 6v2.25"/></svg>`,
   close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>`,
+  edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
   iconSun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
   iconMoon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
 };
@@ -44,8 +63,12 @@ const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const isWebTab = tab => /^(https?|file):/.test(tab.url || '');
 const hostname = url => {
-  try { return url.startsWith('file:') ? 'local-files' : new URL(url).hostname; }
+  try { return url.startsWith('file:') ? LOCAL_FILES_KEY : new URL(url).hostname; }
   catch { return ''; }
+};
+const tidyName = (value, max = MAX_NAME_LENGTH) => {
+  if (typeof value !== 'string') return '';
+  return value.trim().slice(0, max);
 };
 const localFavicon = url => `${chrome.runtime.getURL('_favicon/')}?pageUrl=${encodeURIComponent(url)}&size=16`;
 
@@ -75,15 +98,12 @@ function faviconImage(item, className = '') {
 
 function friendlyDomain(host) {
   if (FRIENDLY[host]) return FRIENDLY[host];
+  const cap = (s = '') => s.charAt(0).toUpperCase() + s.slice(1);
   if (host.endsWith('.feishu.cn')) return 'Feishu';
-  if (host.endsWith('.substack.com')) return `${capitalize(host.replace('.substack.com', ''))}'s Substack`;
-  if (host.endsWith('.github.io')) return `${capitalize(host.replace('.github.io', ''))} (GitHub Pages)`;
+  if (host.endsWith('.substack.com')) return `${cap(host.replace('.substack.com', ''))}'s Substack`;
+  if (host.endsWith('.github.io')) return `${cap(host.replace('.github.io', ''))} (GitHub Pages)`;
   return host.replace(/^www\./, '').replace(/\.(com|org|net|io|co|ai|dev|app|so|me|xyz|info|us|uk|cn)$/, '')
-    .split('.').map(capitalize).join(' ');
-}
-
-function capitalize(value = '') {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+    .split('.').map(cap).join(' ');
 }
 
 function displayTitle(tab) {
@@ -115,11 +135,7 @@ function displayTitle(tab) {
   return title || tab.url;
 }
 
-function configuredRules() {
-  const localLanding = typeof LOCAL_LANDING_PAGE_PATTERNS === 'undefined' ? [] : LOCAL_LANDING_PAGE_PATTERNS;
-  const custom = typeof LOCAL_CUSTOM_GROUPS === 'undefined' ? [] : LOCAL_CUSTOM_GROUPS;
-  return { localLanding, custom };
-}
+const configuredCustomRules = () => typeof LOCAL_CUSTOM_GROUPS === 'undefined' ? [] : LOCAL_CUSTOM_GROUPS;
 
 function ruleMatches(rule, url) {
   try {
@@ -134,40 +150,94 @@ function ruleMatches(rule, url) {
   } catch { return false; }
 }
 
-function groupTabs(tabs) {
-  const { localLanding, custom } = configuredRules();
-  const landingRules = [
-    { hostname: 'mail.google.com', test: (_path, url) => !/#(inbox|sent|search)\//.test(url) },
-    { hostname: 'x.com', pathExact: ['/home'] },
-    { hostname: 'www.linkedin.com', pathExact: ['/'] },
-    { hostname: 'github.com', pathExact: ['/'] },
-    { hostname: 'www.youtube.com', pathExact: ['/'] },
-    ...localLanding,
-  ];
+function customNameFor(key) {
+  return tidyName(dataState.customGroupNames[key]);
+}
+
+function buildGroups(tabs) {
+  const custom = configuredCustomRules();
   const groups = new Map();
 
   for (const tab of tabs.filter(isWebTab)) {
     const customRule = custom.find(rule => ruleMatches(rule, tab.url));
-    const landing = !customRule && landingRules.some(rule => ruleMatches(rule, tab.url));
-    const key = customRule?.groupKey || (landing ? '__landing-pages__' : hostname(tab.url));
+    const landing = !customRule && LANDING_RULES.some(rule => ruleMatches(rule, tab.url));
+    const key = customRule?.groupKey || (landing ? HOME_PAGES_KEY : hostname(tab.url));
     if (!key) continue;
-    if (!groups.has(key)) groups.set(key, {
-      key,
-      label: customRule?.groupLabel || (landing ? 'Homepages' : friendlyDomain(key)),
-      priority: landing ? 2 : landingRules.some(rule => rule.hostname === key) ? 1 : 0,
-      tabs: [],
-    });
+    if (!groups.has(key)) {
+      const defaultLabel = customRule?.groupLabel || (landing ? 'Homepages' : friendlyDomain(key));
+      groups.set(key, {
+        key,
+        defaultLabel,
+        label: customNameFor(key) || defaultLabel,
+        domain: !customRule && !landing && key !== LOCAL_FILES_KEY ? key : '',
+        priority: landing ? 2 : LANDING_RULES.some(rule => rule.hostname === key) ? 1 : 0,
+        tabs: [],
+      });
+    }
     groups.get(key).tabs.push(tab);
   }
 
-  return [...groups.values()].map(group => {
-    const pages = new Map();
-    for (const tab of group.tabs) {
-      if (!pages.has(tab.url)) pages.set(tab.url, []);
-      pages.get(tab.url).push(tab);
+  return [...groups.values()].sort(sortGroups);
+}
+
+function paginate(group) {
+  const pages = new Map();
+  for (const tab of group.tabs) {
+    if (!pages.has(tab.url)) pages.set(tab.url, []);
+    pages.get(tab.url).push(tab);
+  }
+  const entries = [...pages.values()];
+  const duplicates = entries.reduce((n, x) => n + x.length - 1, 0);
+  return { pages: entries, duplicates };
+}
+
+function sortGroups(a, b) {
+  return b.priority - a.priority || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
+}
+
+// Merge groups that share the same display label (custom or default).
+// `rep` priority picks the group a user would expect to "own" the merged card:
+//   1. has a custom name override
+//   2. is the homepages bucket
+//   3. is local files
+//   4. higher landing priority
+//   5. more tabs
+//   6. lexicographic key (deterministic fallback)
+function mergeByLabel(groups) {
+  const buckets = new Map();
+  for (const group of groups) {
+    if (!buckets.has(group.label)) buckets.set(group.label, []);
+    buckets.get(group.label).push(group);
+  }
+
+  const merged = [];
+  for (const bucket of buckets.values()) {
+    if (bucket.length === 1) {
+      const [group] = bucket;
+      merged.push({ ...group, sources: [{ key: group.key, defaultLabel: group.defaultLabel, domain: group.domain }] });
+      continue;
     }
-    return { ...group, pages: [...pages.values()], duplicates: [...pages.values()].reduce((n, x) => n + x.length - 1, 0) };
-  }).sort((a, b) => b.priority - a.priority || b.tabs.length - a.tabs.length);
+    bucket.sort((a, b) => sortGroups(a, b)
+      || (customNameFor(b.key) ? 1 : 0) - (customNameFor(a.key) ? 1 : 0));
+    const rep = bucket[0];
+    const tabs = bucket.flatMap(g => g.tabs);
+    const sources = bucket.map(g => ({ key: g.key, defaultLabel: g.defaultLabel, domain: g.domain }));
+    merged.push({ ...rep, tabs, sources });
+  }
+  return merged.sort(sortGroups);
+}
+
+function describeGroup(group) {
+  const lines = [`Default: ${group.defaultLabel}`];
+  if (group.sources.length > 1) {
+    lines.push(`Combined from ${group.sources.length} groups`);
+    for (const s of group.sources) {
+      lines.push(s.domain ? `${s.defaultLabel} (${s.domain})` : s.defaultLabel);
+    }
+  } else if (group.domain) {
+    lines.push(`Domain: ${group.domain}`);
+  }
+  return lines.join('\n');
 }
 
 function timeAgo(value) {
@@ -194,13 +264,19 @@ function tabTemplate(copies) {
 }
 
 function groupTemplate(group, index) {
-  const visible = group.pages.slice(0, 8);
-  const hidden = group.pages.slice(8);
-  const duplicateBadge = group.duplicates
-    ? `<span class="open-tabs-badge" style="color:var(--accent-amber);background:rgba(200,113,58,.08)">${plural(group.duplicates, 'duplicate')}</span>` : '';
-  return `<article class="mission-card domain-card ${group.duplicates ? 'has-amber-bar' : 'has-neutral-bar'}" data-group="${index}">
-    <div class="status-bar"></div><div class="mission-content">
-      <div class="mission-top"><span class="mission-name">${esc(group.label)}</span>
+  const { pages, duplicates } = paginate(group);
+  const visible = pages.slice(0, 8);
+  const hidden = pages.slice(8);
+  const duplicateBadge = duplicates
+    ? `<span class="open-tabs-badge open-tabs-badge-duplicate">${plural(duplicates, 'duplicate')}</span>` : '';
+  const editing = uiState.editingKey === group.key;
+  const titleHtml = editing
+    ? `<span class="mission-name">${esc(group.defaultLabel)}</span><input class="group-name-input" data-group="${index}" value="${esc(uiState.editingDraft)}" maxlength="${MAX_NAME_LENGTH}" aria-label="Custom name for ${esc(group.defaultLabel)}" autocomplete="off">`
+    : `<span class="mission-name" title="${esc(describeGroup(group))}">${esc(group.label)}</span>
+      <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="Rename group" aria-label="Rename ${esc(group.label)}">${ICONS.edit}</button>`;
+  return `<article class="mission-card domain-card${duplicates ? ' has-duplicates' : ''}" data-group="${index}">
+    <div class="mission-content">
+      <div class="mission-top"><div class="mission-title">${titleHtml}</div>
         <span class="open-tabs-badge">${ICONS.tabs}${plural(group.tabs.length, 'tab')} open</span>${duplicateBadge}</div>
       <div class="mission-pages">${visible.map(tabTemplate).join('')}
         ${hidden.length ? `<div class="page-chips-overflow" hidden>${hidden.map(tabTemplate).join('')}</div>
@@ -208,9 +284,9 @@ function groupTemplate(group, index) {
       </div>
       <div class="actions">
         <button class="action-btn close-tabs" data-action="close-group" data-group="${index}">${ICONS.close}Close all ${plural(group.tabs.length, 'tab')}</button>
-        ${group.duplicates ? `<button class="action-btn" data-action="dedupe" data-group="${index}">Close ${plural(group.duplicates, 'duplicate')}</button>` : ''}
+        ${duplicates ? `<button class="action-btn" data-action="dedupe" data-group="${index}">Close ${plural(duplicates, 'duplicate')}</button>` : ''}
       </div>
-    </div><div class="mission-meta"></div>
+    </div>
   </article>`;
 }
 
@@ -235,10 +311,10 @@ function safeUrl(url) {
 }
 
 function savedTemplate() {
-  const active = state.saved.filter(x => !x.completedAt);
-  const archived = state.saved.filter(x => x.completedAt);
+  const active = dataState.saved.filter(x => !x.completedAt);
+  const archived = dataState.saved.filter(x => x.completedAt);
   if (!active.length && !archived.length) return '';
-  const query = state.archiveQuery.toLowerCase();
+  const query = uiState.archiveQuery.trim().toLowerCase();
   const filtered = query.length < 2 ? archived : archived.filter(x =>
     (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query));
 
@@ -248,23 +324,35 @@ function savedTemplate() {
     <div class="deferred-list">${active.map(savedItemTemplate).join('')}</div>
     ${active.length ? '' : '<div class="deferred-empty">Nothing saved. Living in the moment.</div>'}
     ${archived.length ? `<div class="deferred-archive">
-      <button class="archive-toggle ${state.archiveOpen ? 'open' : ''}" data-action="toggle-archive">⌄ Archive <span class="archive-count">(${archived.length})</span></button>
-      <div class="archive-body" ${state.archiveOpen ? '' : 'hidden'}>
-        <input class="archive-search" id="archiveSearch" value="${esc(state.archiveQuery)}" placeholder="Search archived tabs...">
+      <button class="archive-toggle ${uiState.archiveOpen ? 'open' : ''}" data-action="toggle-archive">⌄ Archive <span class="archive-count">(${archived.length})</span></button>
+      <div class="archive-body" ${uiState.archiveOpen ? '' : 'hidden'}>
+        <input class="archive-search" id="archiveSearch" value="${esc(uiState.archiveQuery)}" placeholder="Search archived tabs...">
         <div class="archive-list">${filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>'}</div>
       </div></div>` : ''}
   </aside>`;
 }
 
 function render() {
-  const realTabs = state.tabs.filter(isWebTab);
+  const groups = mergeByLabel(buildGroups(dataState.tabs));
+  const realTabs = dataState.tabs.filter(isWebTab);
   const themeIcon = currentTheme() === 'dark' ? ICONS.iconSun : ICONS.iconMoon;
-  app.innerHTML = `<div class="container">
+  const containerClass = uiState.firstRender ? 'container' : 'container no-anim';
+
+  app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${state.groups.length ? `<section class="active-section"><div class="section-header"><button class="theme-toggle" data-action="toggle-theme" title="Toggle theme">${themeIcon}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(state.groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions">${state.groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header"><button class="theme-toggle" data-action="toggle-theme" title="Toggle theme">${themeIcon}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
   </div>`;
+  uiState.firstRender = false;
+
+  if (uiState.editingKey) {
+    const input = $('.group-name-input');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
 }
 
 function emptyTemplate() {
@@ -272,37 +360,45 @@ function emptyTemplate() {
 }
 
 function currentTheme() {
-  return state.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  return dataState.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 }
 
 function applyTheme() {
   document.documentElement.dataset.theme = currentTheme();
 }
 
-async function refresh() {
+async function loadState() {
   const [tabs, stored] = await Promise.all([
-    chrome.tabs.query({}), chrome.storage.local.get({ deferred: [], theme: null }),
+    chrome.tabs.query({}),
+    chrome.storage.local.get({ deferred: [], theme: null, customGroupNames: {} }),
   ]);
-  state.tabs = tabs;
+  dataState.tabs = tabs;
   // Read the original v1 shape too: completed/dismissed were booleans.
-  state.saved = stored.deferred.filter(item => item && !item.dismissed).map(item => ({
+  dataState.saved = stored.deferred.filter(item => item && !item.dismissed).map(item => ({
     ...item,
     completedAt: item.completedAt || (item.completed ? item.savedAt : null),
   }));
-  state.theme = stored.theme;
-  state.groups = groupTabs(tabs);
+  dataState.theme = stored.theme;
+  dataState.customGroupNames = Object.fromEntries(
+    Object.entries(stored.customGroupNames || {})
+      .map(([key, value]) => [key, tidyName(value)])
+      .filter(([key, value]) => key && value),
+  );
+}
+
+async function refresh() {
+  await loadState();
   applyTheme();
   render();
 }
 
-async function setSaved(update) {
-  const next = update(state.saved);
-  state.saved = next;
-  await chrome.storage.local.set({ deferred: next });
+function findTab(id) {
+  return dataState.tabs.find(tab => tab.id === Number(id));
 }
 
-function findTab(id) {
-  return state.tabs.find(tab => tab.id === Number(id));
+async function setSaved(update) {
+  dataState.saved = update(dataState.saved);
+  await chrome.storage.local.set({ deferred: dataState.saved });
 }
 
 async function removeTabs(ids) {
@@ -310,19 +406,69 @@ async function removeTabs(ids) {
   if (unique.length) await chrome.tabs.remove(unique);
 }
 
-function showToast(message) {
-  const toast = $('#toast');
-  toast.textContent = message;
-  toast.classList.add('visible');
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toast.classList.remove('visible'), 2200);
+function groupAt(index) {
+  const groups = mergeByLabel(buildGroups(dataState.tabs));
+  return groups[Number(index)] || null;
 }
 
-async function closeWithEffect(ids, message) {
-  await removeTabs(ids); showToast(message); await refresh();
+function openEditor(group) {
+  uiState.editingKey = group.key;
+  uiState.editingDraft = group.label;
+  render();
+}
+
+function cancelEditor() {
+  if (!uiState.editingKey) return;
+  uiState.editingKey = null;
+  uiState.editingDraft = '';
+  render();
+}
+
+async function commitEditor() {
+  const key = uiState.editingKey;
+  if (!key) return;
+  const group = groupAt([...dataState.tabs.keys()][0] ?? 0); // placeholder removed below
+
+  // Find the live group whose key matches.
+  const live = mergeByLabel(buildGroups(dataState.tabs)).find(g => g.sources.some(s => s.key === key));
+  if (!live) { cancelEditor(); return; }
+
+  const entered = tidyName(uiState.editingDraft);
+  const defaultLabel = live.defaultLabel;
+  const nextName = entered && entered !== defaultLabel ? entered : '';
+  const previousName = tidyName(dataState.customGroupNames[key]);
+
+  uiState.editingKey = null;
+  uiState.editingDraft = '';
+
+  if (nextName === previousName) { render(); return; }
+
+  const nextNames = { ...dataState.customGroupNames };
+  if (nextName) nextNames[key] = nextName;
+  else delete nextNames[key];
+
+  const previousNames = dataState.customGroupNames;
+  dataState.customGroupNames = nextNames;
+  try {
+    await chrome.storage.local.set({ customGroupNames: nextNames });
+  } catch (error) {
+    dataState.customGroupNames = previousNames;
+    console.error('[tabulor]', error);
+  }
+  render();
+}
+
+async function closeWithEffect(ids) {
+  await removeTabs(ids);
+  await refresh();
 }
 
 const actions = {
+  'edit-group': (el, event) => {
+    event.stopPropagation();
+    const group = groupAt(el.dataset.group);
+    if (group) openEditor(group);
+  },
   focus: async el => {
     const tab = findTab(el.dataset.tabId);
     if (!tab) return;
@@ -331,32 +477,34 @@ const actions = {
   },
   close: async (el, event) => {
     event.stopPropagation();
-    await closeWithEffect([el.dataset.tabId], 'Tab closed');
+    await closeWithEffect([el.dataset.tabId]);
   },
   save: async (el, event) => {
     event.stopPropagation();
     const tab = findTab(el.dataset.tabId);
     if (!tab) return;
     await setSaved(items => [{ id: crypto.randomUUID(), url: tab.url, title: displayTitle(tab), savedAt: new Date().toISOString(), completedAt: null }, ...items]);
-    await removeTabs([tab.id]); showToast('Saved for later'); await refresh();
+    await removeTabs([tab.id]);
+    await refresh();
   },
   'close-group': async el => {
-    const group = state.groups[el.dataset.group];
-    if (group) await closeWithEffect(group.tabs.map(t => t.id), `Closed ${plural(group.tabs.length, 'tab')} from ${group.label}`);
+    const group = groupAt(el.dataset.group);
+    if (group) await closeWithEffect(group.tabs.map(t => t.id));
   },
   dedupe: async el => {
-    const group = state.groups[el.dataset.group];
+    const group = groupAt(el.dataset.group);
     if (!group) return;
-    const ids = group.pages.flatMap(copies => {
+    const { pages } = paginate(group);
+    const ids = pages.flatMap(copies => {
       const keep = copies.find(t => t.active) || copies[0];
       return copies.filter(t => t.id !== keep.id).map(t => t.id);
     });
-    await closeWithEffect(ids, 'Closed duplicates, kept one copy each');
+    await closeWithEffect(ids);
   },
-  'close-all': async el => closeWithEffect(state.tabs.filter(isWebTab).map(t => t.id), 'All tabs closed. Fresh start.'),
+  'close-all': async () => closeWithEffect(dataState.tabs.filter(isWebTab).map(t => t.id)),
   'toggle-theme': () => {
     const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    state.theme = next;
+    dataState.theme = next;
     chrome.storage.local.set({ theme: next });
     applyTheme();
     render();
@@ -370,8 +518,8 @@ const actions = {
     await setSaved(items => items.filter(x => x.id !== el.dataset.savedId));
     await refresh();
   },
-  'toggle-archive': el => {
-    state.archiveOpen = !state.archiveOpen;
+  'toggle-archive': () => {
+    uiState.archiveOpen = !uiState.archiveOpen;
     render();
   },
   expand: el => {
@@ -385,10 +533,7 @@ document.addEventListener('error', event => {
   if (!image.matches?.('img[data-favicon-fallbacks]')) return;
   const fallbacks = JSON.parse(image.dataset.faviconFallbacks || '[]');
   const next = fallbacks.shift();
-  if (!next) {
-    image.hidden = true;
-    return;
-  }
+  if (!next) { image.hidden = true; return; }
   image.dataset.faviconFallbacks = JSON.stringify(fallbacks);
   image.src = next;
 }, true);
@@ -398,18 +543,39 @@ document.addEventListener('click', async event => {
   if (!el || !actions[el.dataset.action]) return;
   el.disabled = true;
   try { await actions[el.dataset.action](el, event); }
-  catch (error) { console.error('[tabulor]', error); showToast('Something went wrong'); }
+  catch (error) { console.error('[tabulor]', error); }
   finally { if (el.isConnected) el.disabled = false; }
 });
 
 document.addEventListener('input', event => {
-  if (event.target.id !== 'archiveSearch') return;
-  state.archiveQuery = event.target.value;
-  const archived = state.saved.filter(x => x.completedAt);
-  const query = state.archiveQuery.trim().toLowerCase();
+  const target = event.target;
+  if (target.matches('.group-name-input')) {
+    uiState.editingDraft = target.value;
+    return;
+  }
+  if (target.id !== 'archiveSearch') return;
+  uiState.archiveQuery = target.value;
+  const archived = dataState.saved.filter(x => x.completedAt);
+  const query = uiState.archiveQuery.trim().toLowerCase();
   const filtered = query.length < 2 ? archived : archived.filter(x =>
     (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query));
   $('.archive-list').innerHTML = filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>';
+});
+
+document.addEventListener('keydown', event => {
+  if (!event.target.matches('.group-name-input') || event.isComposing) return;
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    commitEditor().catch(error => console.error('[tabulor]', error));
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    cancelEditor();
+  }
+});
+
+document.addEventListener('focusout', event => {
+  if (!event.target.matches('.group-name-input') || !uiState.editingKey) return;
+  commitEditor().catch(error => console.error('[tabulor]', error));
 });
 
 let refreshTimer;
@@ -421,8 +587,12 @@ chrome.tabs.onCreated.addListener(scheduleRefresh);
 chrome.tabs.onRemoved.addListener(scheduleRefresh);
 chrome.tabs.onUpdated.addListener(scheduleRefresh);
 chrome.tabs.onMoved.addListener(scheduleRefresh);
-chrome.storage.onChanged.addListener((_changes, area) => area === 'local' && scheduleRefresh());
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!state.theme) applyTheme(); });
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  // theme toggles are handled inline; customGroupNames needs a fresh render.
+  if ('customGroupNames' in changes || 'deferred' in changes) scheduleRefresh();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!dataState.theme) applyTheme(); });
 
 refresh().catch(error => {
   console.error('[tabulor]', error);
