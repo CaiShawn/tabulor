@@ -42,12 +42,30 @@ The agent will walk you through it. Takes about 1 minute.
 
 ## Features
 
+### Core
+
 - **Group by domain, homepages on top** — open tabs cluster by site; homepages (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) get their own card
-- **Custom group names** — rename any group inline; names persist locally across Chrome sessions
-- **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
 - **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
 - **Light & dark themes** with a one-click toggle that follows your system preference
 - **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
+
+### Highlights
+
+- **Custom group names** — rename any group inline; names persist locally across Chrome sessions
+- **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
+
+---
+
+## What's new
+
+### v2.0.0
+
+- **Custom group names** — inline rename via the pencil icon; empty input or a value equal to the default reverts to the default label
+- **Auto-merge same-named groups** — two groups that share a label (custom or default) collapse into a single card; the merged card's tooltip lists every source domain
+
+### Roadmap
+
+- **New theme styles** — additional visual themes beyond light/dark, opt-in from the dashboard
 
 ---
 
