@@ -52,7 +52,7 @@ body::before {
   padding: 48px 32px 72px;
 }
 
-.suppress-card-animation .mission-card { animation: none; }
+.container.no-anim .mission-card { animation: none; }
 
 h2, .mission-name, .empty-title {
   font-family: inherit;
@@ -110,7 +110,7 @@ h2, .mission-name, .empty-title {
   background: var(--line);
 }
 
-.mission-card.has-amber-bar::before { background: var(--amber); }
+.mission-card.has-duplicates::before { background: var(--amber); }
 .status-bar, .mission-meta { display: none; }
 .mission-content { width: 100%; padding: 18px; }
 .mission-top { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 13px; }
