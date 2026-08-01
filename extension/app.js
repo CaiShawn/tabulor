@@ -271,7 +271,7 @@ function groupTemplate(group, index) {
     ? `<span class="open-tabs-badge open-tabs-badge-duplicate">${plural(duplicates, 'duplicate')}</span>` : '';
   const editing = uiState.editingKey === group.key;
   const titleHtml = editing
-    ? `<span class="mission-name">${esc(group.defaultLabel)}</span><input class="group-name-input" data-group="${index}" value="${esc(uiState.editingDraft)}" maxlength="${MAX_NAME_LENGTH}" aria-label="Custom name for ${esc(group.defaultLabel)}" autocomplete="off">`
+    ? `<input class="group-name-input" data-group="${index}" value="${esc(uiState.editingDraft)}" maxlength="${MAX_NAME_LENGTH}" placeholder="${esc(group.defaultLabel)}" title="${esc(describeGroup(group))}" aria-label="Custom name for ${esc(group.defaultLabel)}" autocomplete="off">`
     : `<span class="mission-name" title="${esc(describeGroup(group))}">${esc(group.label)}</span>
       <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="Rename group" aria-label="Rename ${esc(group.label)}">${ICONS.edit}</button>`;
   return `<article class="mission-card domain-card${duplicates ? ' has-duplicates' : ''}" data-group="${index}">
@@ -413,7 +413,9 @@ function groupAt(index) {
 
 function openEditor(group) {
   uiState.editingKey = group.key;
-  uiState.editingDraft = group.label;
+  // Start with an empty draft so the placeholder ("default label") stays visible
+  // until the user types. commitEditor treats an empty value as "revert".
+  uiState.editingDraft = '';
   render();
 }
 

@@ -135,7 +135,8 @@ h2, .mission-name, .empty-title {
 .group-rename-btn svg { width: 12px; height: 12px; }
 
 .group-name-input {
-  width: 190px;
+  flex: 1 1 auto;
+  min-width: 160px;
   max-width: 100%;
   height: 28px;
   padding: 3px 7px;
@@ -147,6 +148,7 @@ h2, .mission-name, .empty-title {
   font-size: 16px;
   box-shadow: 0 0 0 2px rgba(200, 113, 58, .1);
 }
+.group-name-input::placeholder { color: var(--muted); opacity: 1; }
 
 .open-tabs-badge {
   display: inline-flex;
