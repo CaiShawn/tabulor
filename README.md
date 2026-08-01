@@ -43,6 +43,8 @@ The agent will walk you through it. Takes about 1 minute.
 ## Features
 
 - **Group by domain, homepages on top** — open tabs cluster by site; homepages (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) get their own card
+- **Custom group names** — rename any group inline; names persist locally across Chrome sessions
+- **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
 - **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
 - **Light & dark themes** with a one-click toggle that follows your system preference
 - **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
@@ -76,6 +78,8 @@ You'll see Tabulor.
 You open a new tab
   -> Tabulor shows your open tabs grouped by domain
   -> Homepages (163/QQ Mail, Bilibili, Weibo, etc.) get their own group at the top
+  -> Click the pencil icon to rename a group; hover the title for the default label and source domains
+  -> Groups that share the same name (custom or default) collapse into one card
   -> Click any tab title to jump to it
   -> Close groups you're done with
   -> Save tabs for later before closing them
