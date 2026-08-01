@@ -1,0 +1,105 @@
+# Tabulor
+
+**Keep tabs on your tabs.**
+
+Tabulor is a Chrome extension that replaces your new tab page with a dashboard of everything you have open. Tabs are grouped by domain, with homepages (Gmail, X, LinkedIn, etc.) pulled into their own group.
+
+Light & dark themes. No server. No account. No external API calls. Just a Chrome extension.
+
+---
+
+## Inspired by
+
+Tabulor is a personal rebrand and continuation of ideas from two excellent open-source projects:
+
+- [**tab-out**](https://github.com/zarazhangrui/tab-out) by [Zara](https://x.com/zarazhangrui) — the upstream foundation. Tabulor is forked from this project; most of the core behavior, grouping logic, and overall structure come from there.
+- [**tab-harbor**](https://github.com/V-IOLE-T/tab-harbor) by V-IOLE-T — a richer evolution of the same idea, adding saved sessions, todos, themes, custom backgrounds, and a more configurable workspace. Tabulor borrows inspiration from its broader product thinking.
+
+If you like Tabulor, please check out and star the original projects — they did the hard work.
+
+---
+
+## Install with a coding agent
+
+Send your coding agent (Claude Code, Codex, etc.) this repo and say **"install this"**:
+
+```
+https://github.com/CaiShawn/tabulor
+```
+
+The agent will walk you through it. Takes about 1 minute.
+
+---
+
+## Features
+
+- **See all your tabs at a glance** on a clean grid, grouped by domain
+- **Homepages group** pulls Gmail inbox, X home, YouTube, LinkedIn, GitHub homepages into one card
+- **Light & dark themes** with a one-click toggle that follows your system preference by default
+- **Duplicate detection** flags when you have the same page open twice, with one-click cleanup
+- **Click any tab to jump to it** across windows, no new tab opened
+- **Save for later** bookmark tabs to a checklist before closing them
+- **Archive search** find saved tabs later with full-text search over title and URL
+- **Localhost grouping** shows port numbers next to each tab so you can tell your vibe coding projects apart
+- **Expandable groups** show the first 8 tabs with a clickable "+N more"
+- **100% local** your data never leaves your machine
+- **Pure Chrome extension** no server, no Node.js, no npm, no setup beyond loading the extension
+
+---
+
+## Manual Setup
+
+**1. Clone the repo**
+
+```bash
+git clone https://github.com/CaiShawn/tabulor.git
+```
+
+**2. Load the Chrome extension**
+
+1. Open Chrome and go to `chrome://extensions`
+2. Enable **Developer mode** (top-right toggle)
+3. Click **Load unpacked**
+4. Navigate to the `extension/` folder inside the cloned repo and select it
+
+**3. Open a new tab**
+
+You'll see Tabulor.
+
+---
+
+## How it works
+
+```
+You open a new tab
+  -> Tabulor shows your open tabs grouped by domain
+  -> Homepages (Gmail, X, etc.) get their own group at the top
+  -> Click any tab title to jump to it
+  -> Close groups you're done with
+  -> Save tabs for later before closing them
+  -> Toggle light/dark any time with the button in the section header
+```
+
+Everything runs inside the Chrome extension. No external server, no API calls, no data sent anywhere. Saved tabs and your theme choice are stored in `chrome.storage.local`.
+
+---
+
+## Tech stack
+
+| What | How |
+|------|-----|
+| Extension | Chrome Manifest V3 |
+| Storage | chrome.storage.local |
+| Theming | CSS variables + `prefers-color-scheme` |
+
+---
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE).
+
+Based on [tab-out](https://github.com/zarazhangrui/tab-out) by Zara Zhang (MIT) and inspired by [tab-harbor](https://github.com/V-IOLE-T/tab-harbor) by V-IOLE-T (MIT).
+
+---
+
+Maintained by [CaiShawn](https://github.com/CaiShawn)
