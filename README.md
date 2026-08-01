@@ -2,7 +2,7 @@
 
 **Keep tabs on your tabs.**
 
-Tabulor is a Chrome extension that replaces your new tab page with a dashboard of everything you have open. Tabs are grouped by domain, with homepages (Gmail, X, LinkedIn, etc.) pulled into their own group.
+Tabulor is a Chrome extension that replaces your new tab page with a dashboard of everything you have open. Tabs are grouped by domain, with homepages (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) pulled into their own group.
 
 Light & dark themes. No server. No account. No external API calls. Just a Chrome extension.
 
@@ -33,17 +33,10 @@ The agent will walk you through it. Takes about 1 minute.
 
 ## Features
 
-- **See all your tabs at a glance** on a clean grid, grouped by domain
-- **Homepages group** pulls Gmail inbox, X home, YouTube, LinkedIn, GitHub homepages into one card
-- **Light & dark themes** with a one-click toggle that follows your system preference by default
-- **Duplicate detection** flags when you have the same page open twice, with one-click cleanup
-- **Click any tab to jump to it** across windows, no new tab opened
-- **Save for later** bookmark tabs to a checklist before closing them
-- **Archive search** find saved tabs later with full-text search over title and URL
-- **Localhost grouping** shows port numbers next to each tab so you can tell your vibe coding projects apart
-- **Expandable groups** show the first 8 tabs with a clickable "+N more"
-- **100% local** your data never leaves your machine
-- **Pure Chrome extension** no server, no Node.js, no npm, no setup beyond loading the extension
+- **Group by domain, homepages on top** — open tabs cluster by site; homepages (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) get their own card
+- **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
+- **Light & dark themes** with a one-click toggle that follows your system preference
+- **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
 
 ---
 
@@ -73,7 +66,7 @@ You'll see Tabulor.
 ```
 You open a new tab
   -> Tabulor shows your open tabs grouped by domain
-  -> Homepages (Gmail, X, etc.) get their own group at the top
+  -> Homepages (163/QQ Mail, Bilibili, Weibo, etc.) get their own group at the top
   -> Click any tab title to jump to it
   -> Close groups you're done with
   -> Save tabs for later before closing them
