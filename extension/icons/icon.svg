@@ -1,13 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" shape-rendering="geometricPrecision">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <!-- Terminal Dark palette: background #1a170f, foreground #eceae5, accent #eec35e -->
-  <!-- Rounded square base -->
-  <rect x="2" y="2" width="124" height="124" rx="24" fill="#1a170f"/>
-  <!-- Three title-bar dots (also work as 16px hint of "tab/window") -->
-  <circle cx="20" cy="20" r="4" fill="#eec35e"/>
-  <circle cx="34" cy="20" r="4" fill="#7a6440"/>
-  <circle cx="48" cy="20" r="4" fill="#5c4a2a"/>
-  <!-- Single tab body, large enough to read at 16px -->
-  <rect x="20" y="44" width="88" height="60" rx="8" fill="#eceae5"/>
-  <!-- Cursor bar inside the tab, amber accent -->
-  <rect x="36" y="68" width="56" height="12" rx="2" fill="#eec35e"/>
+  <rect x="4" y="4" width="120" height="120" rx="22" fill="#1a170f"/>
+  <!-- Three stacked tab outlines (back to front) -->
+  <rect x="34" y="40" width="62" height="44" rx="6" fill="none" stroke="#5c4a2a" stroke-width="3"/>
+  <rect x="28" y="46" width="62" height="44" rx="6" fill="none" stroke="#7a6440" stroke-width="3"/>
+  <rect x="22" y="52" width="62" height="44" rx="6" fill="none" stroke="#eceae5" stroke-width="3"/>
+  <!-- Cursor underline (active tab indicator) -->
+  <rect x="22" y="100" width="62" height="8" fill="#eec35e" rx="2"/>
 </svg>
