@@ -33,3 +33,6 @@ Desktop.ini
 # Local development tools
 /docs/superpowers/
 /.pi/
+
+# Icon version sketches (kept locally for diff/rollback, not pushed)
+/extension/icons/versions/
