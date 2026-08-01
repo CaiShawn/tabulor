@@ -17,6 +17,15 @@ Tabulor is a personal rebrand and continuation of ideas from two excellent open-
 
 If you like Tabulor, please check out and star the original projects — they did the hard work.
 
+## Recommendation
+
+There are also some awesome extensions you might like:
+
+- [**Session Buddy**](https://chromewebstore.google.com/detail/session-buddy-tab-bookmar/edacconmaakjimmfgnblocblbcdcpbko) by [sessionbuddy.com](https://sessionbuddy.com/) - Save and restore sessions, manage tabs and bookmarks, and stay organized with a powerful and trusted privacy-first session manager.
+- [**Tree Style Tab**](https://github.com/xingtanzjr/Tree-Style-Tab) by xingtanzjr - A tree-style tab manager for Chrome & Edge. Organize, search, and navigate your tabs visually.
+- [**Tab Session Manager**](https://github.com/sienori/Tab-Session-Manager) by sienori - Save and restore the state of browser windows and tabs. It also supports automatic saving.
+- [**TabFS**](https://github.com/osnr/TabFS) by osnr - a browser extension that mounts your browser tabs as a filesystem on your computer.
+
 ---
 
 ## Install with a coding agent
