@@ -4,6 +4,7 @@
 const MAX_NAME_LENGTH = 50;
 const HOME_PAGES_KEY = '__landing-pages__';
 const LOCAL_FILES_KEY = 'local-files';
+const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', customGroupNames: 'customGroupNames' };
 const LANDING_RULES = [
   { hostname: 'mail.google.com', test: (_path, url) => !/#(inbox|sent|search)\//.test(url) },
   { hostname: 'x.com', pathExact: ['/home'] },
@@ -180,15 +181,16 @@ function buildGroups(tabs) {
   return [...groups.values()].sort(sortGroups);
 }
 
-function paginate(group) {
+function withPages(group) {
+  if (group.pages) return group;
   const pages = new Map();
   for (const tab of group.tabs) {
     if (!pages.has(tab.url)) pages.set(tab.url, []);
     pages.get(tab.url).push(tab);
   }
-  const entries = [...pages.values()];
-  const duplicates = entries.reduce((n, x) => n + x.length - 1, 0);
-  return { pages: entries, duplicates };
+  group.pages = [...pages.values()];
+  group.duplicates = group.pages.reduce((n, x) => n + x.length - 1, 0);
+  return group;
 }
 
 function sortGroups(a, b) {
@@ -203,26 +205,30 @@ function sortGroups(a, b) {
 //   4. higher landing priority
 //   5. more tabs
 //   6. lexicographic key (deterministic fallback)
+function pickRepGroup(a, b) {
+  const repBoost = g => (customNameFor(g.key) ? 4 : 0) + (g.key === HOME_PAGES_KEY ? 3 : 0)
+    + (g.key === LOCAL_FILES_KEY ? 2 : 0) + g.priority;
+  return repBoost(b) - repBoost(a) || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
+}
+
 function mergeByLabel(groups) {
   const buckets = new Map();
   for (const group of groups) {
     if (!buckets.has(group.label)) buckets.set(group.label, []);
     buckets.get(group.label).push(group);
   }
-
   const merged = [];
   for (const bucket of buckets.values()) {
     if (bucket.length === 1) {
       const [group] = bucket;
-      merged.push({ ...group, sources: [{ key: group.key, defaultLabel: group.defaultLabel, domain: group.domain }] });
+      merged.push(withPages({ ...group, sources: [{ key: group.key, defaultLabel: group.defaultLabel, domain: group.domain }] }));
       continue;
     }
-    bucket.sort((a, b) => sortGroups(a, b)
-      || (customNameFor(b.key) ? 1 : 0) - (customNameFor(a.key) ? 1 : 0));
+    bucket.sort(pickRepGroup);
     const rep = bucket[0];
     const tabs = bucket.flatMap(g => g.tabs);
     const sources = bucket.map(g => ({ key: g.key, defaultLabel: g.defaultLabel, domain: g.domain }));
-    merged.push({ ...rep, tabs, sources });
+    merged.push(withPages({ ...rep, tabs, sources }));
   }
   return merged.sort(sortGroups);
 }
@@ -264,7 +270,7 @@ function tabTemplate(copies) {
 }
 
 function groupTemplate(group, index) {
-  const { pages, duplicates } = paginate(group);
+  const { pages, duplicates } = withPages(group);
   const visible = pages.slice(0, 8);
   const hidden = pages.slice(8);
   const duplicateBadge = duplicates
@@ -334,6 +340,7 @@ function savedTemplate() {
 
 function render() {
   const groups = mergeByLabel(buildGroups(dataState.tabs));
+  lastGroups = groups;
   const realTabs = dataState.tabs.filter(isWebTab);
   const themeIcon = currentTheme() === 'dark' ? ICONS.iconSun : ICONS.iconMoon;
   const containerClass = uiState.firstRender ? 'container' : 'container no-anim';
@@ -345,14 +352,15 @@ function render() {
     </div>
   </div>`;
   uiState.firstRender = false;
+  focusEditorIfNeeded();
+}
 
-  if (uiState.editingKey) {
-    const input = $('.group-name-input');
-    if (input) {
-      input.focus();
-      input.select();
-    }
-  }
+function focusEditorIfNeeded() {
+  if (!uiState.editingKey) return;
+  const input = $('.group-name-input');
+  if (!input) return;
+  input.focus();
+  input.select();
 }
 
 function emptyTemplate() {
@@ -370,7 +378,7 @@ function applyTheme() {
 async function loadState() {
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ deferred: [], theme: null, customGroupNames: {} }),
+    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.customGroupNames]: {} }),
   ]);
   dataState.tabs = tabs;
   // Read the original v1 shape too: completed/dismissed were booleans.
@@ -396,9 +404,9 @@ function findTab(id) {
   return dataState.tabs.find(tab => tab.id === Number(id));
 }
 
-async function setSaved(update) {
+async function setDeferred(update) {
   dataState.saved = update(dataState.saved);
-  await chrome.storage.local.set({ deferred: dataState.saved });
+  await chrome.storage.local.set({ [STORAGE_KEYS.deferred]: dataState.saved });
 }
 
 async function removeTabs(ids) {
@@ -406,10 +414,10 @@ async function removeTabs(ids) {
   if (unique.length) await chrome.tabs.remove(unique);
 }
 
-function groupAt(index) {
-  const groups = mergeByLabel(buildGroups(dataState.tabs));
-  return groups[Number(index)] || null;
-}
+// Populated by render(); actions read the same view the user just saw,
+// so editor open/close/save all operate on consistent state.
+let lastGroups = [];
+const groupAt = index => lastGroups[Number(index)] || null;
 
 function openEditor(group) {
   uiState.editingKey = group.key;
@@ -429,10 +437,7 @@ function cancelEditor() {
 async function commitEditor() {
   const key = uiState.editingKey;
   if (!key) return;
-  const group = groupAt([...dataState.tabs.keys()][0] ?? 0); // placeholder removed below
-
-  // Find the live group whose key matches.
-  const live = mergeByLabel(buildGroups(dataState.tabs)).find(g => g.sources.some(s => s.key === key));
+  const live = lastGroups.find(g => g.sources.some(s => s.key === key));
   if (!live) { cancelEditor(); return; }
 
   const entered = tidyName(uiState.editingDraft);
@@ -485,7 +490,7 @@ const actions = {
     event.stopPropagation();
     const tab = findTab(el.dataset.tabId);
     if (!tab) return;
-    await setSaved(items => [{ id: crypto.randomUUID(), url: tab.url, title: displayTitle(tab), savedAt: new Date().toISOString(), completedAt: null }, ...items]);
+    await setDeferred(items => [{ id: crypto.randomUUID(), url: tab.url, title: displayTitle(tab), savedAt: new Date().toISOString(), completedAt: null }, ...items]);
     await removeTabs([tab.id]);
     await refresh();
   },
@@ -496,7 +501,7 @@ const actions = {
   dedupe: async el => {
     const group = groupAt(el.dataset.group);
     if (!group) return;
-    const { pages } = paginate(group);
+    const { pages } = withPages(group);
     const ids = pages.flatMap(copies => {
       const keep = copies.find(t => t.active) || copies[0];
       return copies.filter(t => t.id !== keep.id).map(t => t.id);
@@ -507,17 +512,17 @@ const actions = {
   'toggle-theme': () => {
     const next = currentTheme() === 'dark' ? 'light' : 'dark';
     dataState.theme = next;
-    chrome.storage.local.set({ theme: next });
+    chrome.storage.local.set({ [STORAGE_KEYS.theme]: next });
     applyTheme();
     render();
   },
   complete: async el => {
     const now = new Date().toISOString();
-    await setSaved(items => items.map(x => x.id === el.dataset.savedId ? { ...x, completedAt: now } : x));
+    await setDeferred(items => items.map(x => x.id === el.dataset.savedId ? { ...x, completedAt: now } : x));
     await refresh();
   },
   dismiss: async el => {
-    await setSaved(items => items.filter(x => x.id !== el.dataset.savedId));
+    await setDeferred(items => items.filter(x => x.id !== el.dataset.savedId));
     await refresh();
   },
   'toggle-archive': () => {
@@ -592,7 +597,7 @@ chrome.tabs.onMoved.addListener(scheduleRefresh);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   // theme toggles are handled inline; customGroupNames needs a fresh render.
-  if ('customGroupNames' in changes || 'deferred' in changes) scheduleRefresh();
+  if (STORAGE_KEYS.customGroupNames in changes || STORAGE_KEYS.deferred in changes) scheduleRefresh();
 });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!dataState.theme) applyTheme(); });
 
