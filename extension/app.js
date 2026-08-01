@@ -470,12 +470,9 @@ async function closeWithEffect(ids) {
   await refresh();
 }
 
-const actions = {
-  'edit-group': (el, event) => {
-    event.stopPropagation();
-    const group = groupAt(el.dataset.group);
-    if (group) openEditor(group);
-  },
+// Click actions grouped by the state they touch. The single click delegate
+// below flattens these into one lookup table.
+const tabActions = {
   focus: async el => {
     const tab = findTab(el.dataset.tabId);
     if (!tab) return;
@@ -509,13 +506,9 @@ const actions = {
     await closeWithEffect(ids);
   },
   'close-all': async () => closeWithEffect(dataState.tabs.filter(isWebTab).map(t => t.id)),
-  'toggle-theme': () => {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    dataState.theme = next;
-    chrome.storage.local.set({ [STORAGE_KEYS.theme]: next });
-    applyTheme();
-    render();
-  },
+};
+
+const savedActions = {
   complete: async el => {
     const now = new Date().toISOString();
     await setDeferred(items => items.map(x => x.id === el.dataset.savedId ? { ...x, completedAt: now } : x));
@@ -529,11 +522,28 @@ const actions = {
     uiState.archiveOpen = !uiState.archiveOpen;
     render();
   },
+};
+
+const uiActions = {
+  'edit-group': (el, event) => {
+    event.stopPropagation();
+    const group = groupAt(el.dataset.group);
+    if (group) openEditor(group);
+  },
+  'toggle-theme': () => {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    dataState.theme = next;
+    chrome.storage.local.set({ [STORAGE_KEYS.theme]: next });
+    applyTheme();
+    render();
+  },
   expand: el => {
     const overflow = el.previousElementSibling;
     overflow.hidden = false; overflow.style.display = 'contents'; el.remove();
   },
 };
+
+const actions = { ...tabActions, ...savedActions, ...uiActions };
 
 document.addEventListener('error', event => {
   const image = event.target;
