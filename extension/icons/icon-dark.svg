@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" shape-rendering="geometricPrecision">
+  <!-- Dark terminal variant (Pistachio/Gruvbox-dark palette from style.css):
+       paper #1d2021 background, ink #ebdbb2 yellow shapes. -->
+  <rect x="0" y="0" width="128" height="128" fill="#1d2021"/>
+  <rect x="20" y="30" width="88" height="68" rx="8" fill="none" stroke="#ebdbb2" stroke-width="4"/>
+  <path d="M 36 54 L 56 64 L 36 74" fill="none" stroke="#ebdbb2" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="62" y="70" width="28" height="6" fill="#ebdbb2" rx="1"/>
+</svg>

@@ -1,3 +1,34 @@
+/* ============================================
+   Self-hosted fonts (no external network calls)
+   ============================================ */
+
+/* Inter (variable, Latin subset) */
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-latin-wght-normal.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Meslo LG Mono (Regular weight, subset — no Nerd Font icons) */
+@font-face {
+  font-family: "Meslo LG Mono";
+  src: url("fonts/meslo-lg-mono-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Noto Sans SC (Simplified Chinese subset) — CJK fallback for the terminal stack */
+@font-face {
+  font-family: "Noto Sans SC";
+  src: url("fonts/noto-sans-sc-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ink: #1a1613;
   --paper: #f8f5f0;
@@ -8,6 +39,9 @@
   --amber: #c8713a;
   --sage: #5a7a62;
   --shadow: rgba(26, 22, 19, .07);
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
 }
 
 [data-theme="dark"] {
@@ -32,17 +66,25 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background: var(--paper);
-  font-family: "MesloLGM Nerd Font", "MesloLGM Nerd Font Mono", "Meslo LG M", Consolas, monospace;
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-feature-settings: "tnum" 1;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: .025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+/* Terminal style: applied to <body> when data-style="terminal" is active
+   (toggled by app.js via the .terminal class). Inherits down to all descendants. */
+.terminal,
+.terminal *,
+code,
+pre {
+  font-family: "Meslo LG Mono", "Noto Sans SC", monospace;
+  /* Meslo is monospace and ~25–30% wider per character than Inter's proportional
+     widths, which would otherwise make domain names ("github.com" / "developer.mozilla.org")
+     and tab titles wrap differently and bump card heights on style switch.
+     The two rules below bring Meslo's visual width closer to Inter's. */
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
 }
 
 .container {
@@ -60,7 +102,7 @@ h2, .mission-name, .empty-title {
 }
 
 .dashboard-columns { display: flex; align-items: flex-start; gap: 32px; }
-.active-section { flex: 1 1 50%; min-width: 0; }
+.active-section { flex: 2 1 0; min-width: 0; }
 
 .section-header {
   display: flex;
@@ -69,21 +111,20 @@ h2, .mission-name, .empty-title {
   margin-bottom: 16px;
 }
 
-.section-header h2 { flex: none; font-size: 18px; }
-.theme-toggle {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--muted);
-  background: transparent;
-  cursor: pointer;
-  flex: none;
+.section-header h2 { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+
+.theme-segments { display: inline-flex; gap: 0; flex: none; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.theme-segment {
+  display: inline-flex; align-items: center;
+  height: 24px; padding: 0 8px;
+  border: 0; border-left: 1px solid var(--line);
+  color: var(--muted); background: transparent;
+  font-size: 10px; font-family: inherit; cursor: pointer;
 }
-.theme-toggle:hover { color: var(--ink); background: var(--line); }
-.theme-toggle svg { width: 14px; height: 14px; }
+.theme-segment:first-child { border-left: 0; }
+.theme-segment:hover { color: var(--ink); background: var(--line); }
+.theme-segment[aria-pressed="true"] { color: var(--paper); background: var(--amber); }
+.theme-segment[aria-pressed="true"]:hover { color: var(--paper); background: var(--amber); }
 .section-line { width: 100%; height: 1px; background: var(--line); }
 .section-count { flex: none; color: var(--muted); font-size: 11px; }
 
@@ -96,7 +137,7 @@ h2, .mission-name, .empty-title {
   overflow: hidden;
   break-inside: avoid;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--card);
   box-shadow: 0 3px 16px var(--shadow);
   animation: fade-up .35s ease both;
@@ -111,7 +152,6 @@ h2, .mission-name, .empty-title {
 }
 
 .mission-card.has-duplicates::before { background: var(--amber); }
-.status-bar, .mission-meta { display: none; }
 .mission-content { width: 100%; padding: 18px; }
 .mission-top { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 13px; }
 .mission-title { display: flex; min-width: 0; max-width: 100%; margin-right: auto; align-items: center; gap: 4px; }
@@ -123,7 +163,7 @@ h2, .mission-name, .empty-title {
   height: 24px;
   place-items: center;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--muted);
   background: transparent;
   opacity: .35;
@@ -141,7 +181,7 @@ h2, .mission-name, .empty-title {
   height: 28px;
   padding: 3px 7px;
   border: 1px solid var(--amber);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   outline: 0;
   color: var(--ink);
   background: var(--elevated);
@@ -173,7 +213,7 @@ h2, .mission-name, .empty-title {
   min-height: 34px;
   padding: 7px 8px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: rgba(232, 226, 218, .25);
   font-size: 12px;
 }
@@ -204,7 +244,7 @@ h2, .mission-name, .empty-title {
   height: 25px;
   place-items: center;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--muted);
   background: var(--elevated);
   cursor: pointer;
@@ -220,7 +260,7 @@ h2, .mission-name, .empty-title {
   gap: 5px;
   padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--muted);
   background: transparent;
   font-size: 10px;
@@ -233,7 +273,7 @@ h2, .mission-name, .empty-title {
 .deferred-column {
   position: sticky;
   top: 28px;
-  flex: 1 1 50%;
+  flex: 1 1 0;
   min-width: 0;
   max-height: calc(100vh - 56px);
   overflow-y: auto;
@@ -269,7 +309,7 @@ h2, .mission-name, .empty-title {
 .deferred-archive { margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--line); }
 .archive-toggle { width: 100%; padding: 4px 0; border: 0; color: var(--muted); background: transparent; font-size: 11px; text-align: left; cursor: pointer; }
 .archive-body { padding-top: 10px; }
-.archive-search { width: 100%; margin-bottom: 9px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; outline: 0; background: var(--card); font-size: 11px; }
+.archive-search { width: 100%; margin-bottom: 9px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--card); font-size: 11px; }
 .archive-search:focus { border-color: var(--amber); }
 .archive-item { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(232, 226, 218, .55); font-size: 10px; }
 .archive-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-decoration: none; white-space: nowrap; }
@@ -282,6 +322,57 @@ h2, .mission-name, .empty-title {
 
 
 
+
+/* ---- Terminal style: classic theme tokens overridden, Fira Code, sharp corners. ---- */
+
+/* Terminal · light (Blue Sea) */
+[data-style="terminal"] {
+  --ink: #eceae5;
+  --paper: #153489;
+  --card: #1e44a8;
+  --elevated: #2962c4;
+  --line: #5ea5ee;
+  --muted: #a8c4ee;
+  --amber: #5ea5ee;
+  --sage: #82aaff;
+  --shadow: rgba(0, 0, 0, .45);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+}
+
+/* Terminal · dark (Pistachio / Gruvbox-dark) */
+[data-style="terminal"][data-theme="dark"] {
+  --ink: #ebdbb2;
+  --paper: #1d2021;
+  --card: #282828;
+  --elevated: #3c3836;
+  --line: #504945;
+  --muted: #a89984;
+  --amber: #8ec07c;
+  --sage: #b8bb26;
+  --shadow: rgba(0, 0, 0, .55);
+}
+
+/* Terminal scope: force sharp corners regardless of where radius tokens live */
+[data-style="terminal"] .mission-card,
+[data-style="terminal"] .page-chip,
+[data-style="terminal"] .action-btn,
+[data-style="terminal"] .group-name-input,
+[data-style="terminal"] .theme-segment,
+[data-style="terminal"] .chip-action,
+[data-style="terminal"] .deferred-dismiss {
+  border-radius: 0;
+}
+
+[data-style="terminal"] .theme-segment {
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+[data-style="terminal"] .theme-segment[aria-pressed="true"] {
+  background: var(--amber);
+  border-color: var(--amber);
+}
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }
 

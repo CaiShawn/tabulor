@@ -2,17 +2,16 @@
 'use strict';
 
 const MAX_NAME_LENGTH = 50;
-const HOME_PAGES_KEY = '__landing-pages__';
 const LOCAL_FILES_KEY = 'local-files';
-const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', customGroupNames: 'customGroupNames' };
-const LANDING_RULES = [
-  { hostname: 'mail.google.com', test: (_path, url) => !/#(inbox|sent|search)\//.test(url) },
-  { hostname: 'x.com', pathExact: ['/home'] },
-  { hostname: 'www.linkedin.com', pathExact: ['/'] },
-  { hostname: 'github.com', pathExact: ['/'] },
-  { hostname: 'www.youtube.com', pathExact: ['/'] },
-  ...(typeof LOCAL_LANDING_PAGE_PATTERNS === 'undefined' ? [] : LOCAL_LANDING_PAGE_PATTERNS),
+const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames' };
+// Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
+// (Fira Code, saturated colors, sharp corners). Style is independent of the
+// light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
+const STYLES = [
+  { id: 'classic', label: 'Classic' },
+  { id: 'terminal', label: 'Terminal' },
 ];
+const DEFAULT_STYLE_ID = 'classic';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -23,6 +22,7 @@ const dataState = {
   customGroupNames: {},
   saved: [],
   theme: null,
+  styleId: DEFAULT_STYLE_ID,
 };
 
 const uiState = {
@@ -161,17 +161,16 @@ function buildGroups(tabs) {
 
   for (const tab of tabs.filter(isWebTab)) {
     const customRule = custom.find(rule => ruleMatches(rule, tab.url));
-    const landing = !customRule && LANDING_RULES.some(rule => ruleMatches(rule, tab.url));
-    const key = customRule?.groupKey || (landing ? HOME_PAGES_KEY : hostname(tab.url));
+    const key = customRule?.groupKey || hostname(tab.url);
     if (!key) continue;
     if (!groups.has(key)) {
-      const defaultLabel = customRule?.groupLabel || (landing ? 'Homepages' : friendlyDomain(key));
+      const defaultLabel = customRule?.groupLabel || friendlyDomain(key);
       groups.set(key, {
         key,
         defaultLabel,
         label: customNameFor(key) || defaultLabel,
-        domain: !customRule && !landing && key !== LOCAL_FILES_KEY ? key : '',
-        priority: landing ? 2 : LANDING_RULES.some(rule => rule.hostname === key) ? 1 : 0,
+        domain: !customRule && key !== LOCAL_FILES_KEY ? key : '',
+        priority: 0,
         tabs: [],
       });
     }
@@ -200,14 +199,11 @@ function sortGroups(a, b) {
 // Merge groups that share the same display label (custom or default).
 // `rep` priority picks the group a user would expect to "own" the merged card:
 //   1. has a custom name override
-//   2. is the homepages bucket
-//   3. is local files
-//   4. higher landing priority
-//   5. more tabs
-//   6. lexicographic key (deterministic fallback)
+//   2. is local files
+//   3. more tabs
+//   4. lexicographic key (deterministic fallback)
 function pickRepGroup(a, b) {
-  const repBoost = g => (customNameFor(g.key) ? 4 : 0) + (g.key === HOME_PAGES_KEY ? 3 : 0)
-    + (g.key === LOCAL_FILES_KEY ? 2 : 0) + g.priority;
+  const repBoost = g => (customNameFor(g.key) ? 2 : 0) + (g.key === LOCAL_FILES_KEY ? 1 : 0);
   return repBoost(b) - repBoost(a) || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
 }
 
@@ -256,15 +252,19 @@ function timeAgo(value) {
 }
 
 function tabTemplate(copies) {
+  // Each chip owns the full set of tab ids that share its URL so per-chip
+  // actions (focus/close/save) operate on the visible chip instead of always
+  // the first instance, which used to leak across duplicates.
   const tab = copies[0];
+  const ids = copies.map(t => t.id).join(',');
   const count = copies.length;
-  return `<div class="page-chip clickable${count > 1 ? ' chip-has-dupes' : ''}" data-action="focus" data-tab-id="${tab.id}" title="${esc(displayTitle(tab))}">
+  return `<div class="page-chip clickable${count > 1 ? ' chip-has-dupes' : ''}" data-action="focus" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="${esc(displayTitle(tab))}">
     ${faviconImage(tab, 'chip-favicon')}
     <span class="chip-text">${esc(displayTitle(tab))}</span>
     ${count > 1 ? `<span class="chip-dupe-badge">(${count}x)</span>` : ''}
     <div class="chip-actions">
-      <button class="chip-action chip-save" data-action="save" data-tab-id="${tab.id}" title="Save for later">☆</button>
-      <button class="chip-action chip-close" data-action="close" data-tab-id="${tab.id}" title="Close this tab">${ICONS.close}</button>
+      <button class="chip-action chip-save" data-action="save" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="Save for later">☆</button>
+      <button class="chip-action chip-close" data-action="close" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="Close this tab">${ICONS.close}</button>
     </div>
   </div>`;
 }
@@ -332,7 +332,7 @@ function savedTemplate() {
     ${archived.length ? `<div class="deferred-archive">
       <button class="archive-toggle ${uiState.archiveOpen ? 'open' : ''}" data-action="toggle-archive">⌄ Archive <span class="archive-count">(${archived.length})</span></button>
       <div class="archive-body" ${uiState.archiveOpen ? '' : 'hidden'}>
-        <input class="archive-search" id="archiveSearch" value="${esc(uiState.archiveQuery)}" placeholder="Search archived tabs...">
+        <input class="archive-search" id="archiveSearch" placeholder="Search archived tabs...">
         <div class="archive-list">${filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>'}</div>
       </div></div>` : ''}
   </aside>`;
@@ -342,12 +342,15 @@ function render() {
   const groups = mergeByLabel(buildGroups(dataState.tabs));
   lastGroups = groups;
   const realTabs = dataState.tabs.filter(isWebTab);
-  const themeIcon = currentTheme() === 'dark' ? ICONS.iconSun : ICONS.iconMoon;
+  const styleSegments = STYLES.map(s => {
+    const active = s.id === currentStyleId();
+    return `<button class="theme-segment" data-action="set-style" data-style="${s.id}" aria-pressed="${active}" title="${s.label} style">${s.label}</button>`;
+  }).join('');
   const containerClass = uiState.firstRender ? 'container' : 'container no-anim';
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${groups.length ? `<section class="active-section"><div class="section-header"><button class="theme-toggle" data-action="toggle-theme" title="Toggle theme">${themeIcon}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
   </div>`;
@@ -371,14 +374,38 @@ function currentTheme() {
   return dataState.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 }
 
+function currentStyleId() {
+  return STYLES.some(s => s.id === dataState.styleId) ? dataState.styleId : DEFAULT_STYLE_ID;
+}
+
 function applyTheme() {
-  document.documentElement.dataset.theme = currentTheme();
+  const root = document.documentElement;
+  root.dataset.theme = currentTheme();
+  root.dataset.style = currentStyleId();
+  // Switch the body font stack via the .terminal class (CSS keys off `.terminal`).
+  // Guard `document.body` so the test stub (no body element) can still drive a
+  // refresh() without a classList TypeError leaking into the test output.
+  if (document.body) document.body.classList.toggle('terminal', currentStyleId() === 'terminal');
+  notifyTheme();
+}
+
+// Mirrors the resolved effective theme (dataState.theme override or
+// prefers-color-scheme) to the background service worker so the toolbar
+// action icon can swap to the matching light/dark variant. MV3 service
+// workers cannot register matchMedia listeners themselves; the new-tab page
+// is the only place we can observe OS color-scheme changes.
+function notifyTheme() {
+  const theme = currentTheme();
+  console.log('[tabulor-page] notifyTheme ->', theme, '(system dark =', matchMedia('(prefers-color-scheme: dark)').matches, ')');
+  try {
+    chrome.runtime?.sendMessage?.({ type: 'tabulor:theme-change', theme });
+  } catch { /* service worker not ready yet — background.js initializes on its own */ }
 }
 
 async function loadState() {
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.customGroupNames]: {} }),
+    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {} }),
   ]);
   dataState.tabs = tabs;
   // Read the original v1 shape too: completed/dismissed were booleans.
@@ -387,6 +414,10 @@ async function loadState() {
     completedAt: item.completedAt || (item.completed ? item.savedAt : null),
   }));
   dataState.theme = stored.theme;
+  // Resolve styleId against the registered style list; unknown or missing values
+  // fall back to the default. The legacy `themeId` key was never written, so
+  // there is no on-disk migration step to perform here.
+  dataState.styleId = STYLES.some(s => s.id === stored.styleId) ? stored.styleId : DEFAULT_STYLE_ID;
   dataState.customGroupNames = Object.fromEntries(
     Object.entries(stored.customGroupNames || {})
       .map(([key, value]) => [key, tidyName(value)])
@@ -394,14 +425,28 @@ async function loadState() {
   );
 }
 
+let refreshInFlight;
 async function refresh() {
-  await loadState();
-  applyTheme();
-  render();
+  // Coalesce concurrent refreshes so the storage.onChanged callback and the
+  // main-flow `await refresh()` don't race each other and overwrite each
+  // other's `loadState()` result.
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    await loadState();
+    applyTheme();
+    render();
+  })();
+  try { await refreshInFlight; }
+  finally { refreshInFlight = null; }
 }
 
 function findTab(id) {
   return dataState.tabs.find(tab => tab.id === Number(id));
+}
+
+function parseIds(value) {
+  if (!value) return [];
+  return [...new Set(value.split(',').map(Number).filter(Number.isFinite))];
 }
 
 async function setDeferred(update) {
@@ -426,6 +471,8 @@ function openEditor(group) {
   uiState.editingDraft = '';
   render();
 }
+
+const groupByKey = key => lastGroups.find(g => g.sources.some(s => s.key === key)) || null;
 
 function cancelEditor() {
   if (!uiState.editingKey) return;
@@ -458,11 +505,11 @@ async function commitEditor() {
   dataState.customGroupNames = nextNames;
   try {
     await chrome.storage.local.set({ customGroupNames: nextNames });
+    render();
   } catch (error) {
     dataState.customGroupNames = previousNames;
     console.error('[tabulor]', error);
   }
-  render();
 }
 
 async function closeWithEffect(ids) {
@@ -481,15 +528,14 @@ const tabActions = {
   },
   close: async (el, event) => {
     event.stopPropagation();
-    await closeWithEffect([el.dataset.tabId]);
+    await closeWithEffect(parseIds(el.dataset.tabIds));
   },
   save: async (el, event) => {
     event.stopPropagation();
     const tab = findTab(el.dataset.tabId);
     if (!tab) return;
     await setDeferred(items => [{ id: crypto.randomUUID(), url: tab.url, title: displayTitle(tab), savedAt: new Date().toISOString(), completedAt: null }, ...items]);
-    await removeTabs([tab.id]);
-    await refresh();
+    await closeWithEffect(parseIds(el.dataset.tabIds));
   },
   'close-group': async el => {
     const group = groupAt(el.dataset.group);
@@ -530,16 +576,18 @@ const uiActions = {
     const group = groupAt(el.dataset.group);
     if (group) openEditor(group);
   },
-  'toggle-theme': () => {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    dataState.theme = next;
-    chrome.storage.local.set({ [STORAGE_KEYS.theme]: next });
+  'set-style': (el) => {
+    const nextId = el.dataset.style;
+    if (!STYLES.some(s => s.id === nextId)) return;
+    dataState.styleId = nextId;
+    chrome.storage.local.set({ [STORAGE_KEYS.styleId]: nextId });
     applyTheme();
     render();
   },
   expand: el => {
     const overflow = el.previousElementSibling;
-    overflow.hidden = false; overflow.style.display = 'contents'; el.remove();
+    if (overflow) overflow.hidden = false;
+    el.remove();
   },
 };
 
@@ -572,12 +620,17 @@ document.addEventListener('input', event => {
   }
   if (target.id !== 'archiveSearch') return;
   uiState.archiveQuery = target.value;
+  renderArchiveList();
+});
+
+function renderArchiveList() {
   const archived = dataState.saved.filter(x => x.completedAt);
   const query = uiState.archiveQuery.trim().toLowerCase();
   const filtered = query.length < 2 ? archived : archived.filter(x =>
     (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query));
-  $('.archive-list').innerHTML = filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>';
-});
+  const list = $('.archive-list');
+  if (list) list.innerHTML = filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>';
+}
 
 document.addEventListener('keydown', event => {
   if (!event.target.matches('.group-name-input') || event.isComposing) return;
@@ -606,10 +659,18 @@ chrome.tabs.onUpdated.addListener(scheduleRefresh);
 chrome.tabs.onMoved.addListener(scheduleRefresh);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  // theme toggles are handled inline; customGroupNames needs a fresh render.
+  // style/theme switches are handled inline (applyTheme + set-style) and
+  // do not need a full refresh. customGroupNames and deferred state changes
+  // need a fresh render.
   if (STORAGE_KEYS.customGroupNames in changes || STORAGE_KEYS.deferred in changes) scheduleRefresh();
 });
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!dataState.theme) applyTheme(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  // Only the OS-level signal flows through here; if the user has an explicit
+  // dataState.theme, applyTheme() (via storage change) has already pushed the
+  // notification. notifyTheme() is also called inside applyTheme() so the
+  // toolbar icon stays in sync whenever the dashboard re-renders.
+  if (!dataState.theme) applyTheme();
+});
 
 refresh().catch(error => {
   console.error('[tabulor]', error);
