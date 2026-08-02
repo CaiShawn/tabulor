@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" shape-rendering="geometricPrecision">
-  <!-- Dark mode variant: Matrix green #37a75d (terminal-css preset) -->
-  <rect x="20" y="30" width="88" height="68" rx="8" fill="none" stroke="#37a75d" stroke-width="4"/>
-  <path d="M 36 54 L 56 64 L 36 74" fill="none" stroke="#37a75d" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="62" y="70" width="28" height="6" fill="#37a75d" rx="1"/>
-</svg>

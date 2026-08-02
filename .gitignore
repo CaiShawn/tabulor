@@ -34,5 +34,7 @@ Desktop.ini
 /docs/superpowers/
 /.pi/
 
-# Icon version sketches (kept locally for diff/rollback, not pushed)
-sketches/
+# Local sketch directories and files (kept for iteration, never pushed).
+# Already-tracked files inside `extension/icons/icon-sketches/` are explicitly
+# `git rm --cached`'d in this repo so they stop being tracked.
+/extension/icons/icon-sketches/
