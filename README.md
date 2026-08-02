@@ -104,6 +104,24 @@ Style and light/dark theme are separate state dimensions. New styles should pres
 
 Fonts are served from `extension/fonts/`; the extension makes no external font request. Attribution and source information belong in `extension/fonts/CREDITS.md`.
 
+### User-defined grouping rules
+
+`extension/index.html` loads an optional `config.local.js` before `app.js`.
+The file is gitignored and is the supported extension point for
+personal grouping rules. When present, it should expose a global
+`LOCAL_CUSTOM_GROUPS` array of objects shaped like:
+
+```js
+[
+  { hostname: 'mail.google.com', groupKey: 'mail', groupLabel: 'Mail' },
+  { hostnameEndsWith: '.feishu.cn', groupKey: 'feishu', groupLabel: 'Feishu' },
+  { hostname: 'github.com', pathPrefix: '/issues', groupKey: 'gh-issues', groupLabel: 'GitHub Issues' },
+]
+```
+
+A missing file is harmless; the dashboard falls back to host-based
+grouping.
+
 ## Validation
 
 Run the relevant checks before proposing a commit:

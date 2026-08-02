@@ -223,6 +223,7 @@ h2, .mission-name, .empty-title {
 .page-chip:hover .chip-actions { display: flex; }
 .page-chip:hover .chip-text { padding-right: 48px; }
 .page-chip.chip-has-dupes { border-color: rgba(200, 113, 58, .22); }
+.page-chips-overflow { display: grid; gap: 5px; }
 .page-chip-overflow { justify-content: center; color: var(--muted); }
 
 .chip-favicon, .deferred-title img {
@@ -369,7 +370,6 @@ h2, .mission-name, .empty-title {
   color: var(--muted);
 }
 [data-style="terminal"] .theme-segment[aria-pressed="true"] {
-  color: var(--paper);
   background: var(--amber);
   border-color: var(--amber);
 }
