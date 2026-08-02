@@ -26,23 +26,22 @@ The agent will walk you through it. Takes about 1 minute.
 
 - **Group by domain** — open tabs cluster by site; same-label groups (custom or default) collapse into one card
 - **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
-- **Light & dark themes** with a one-click toggle that follows your system preference
-- **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
+- **Save tabs for later** with a completion → archive flow and an in-dashboard archive list
+- **Custom group names** — rename any group inline; names persist locally across Chrome sessions
+- **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
 
 ### Highlights
 
-- **Selectable visual styles** — Classic (rounded) or Terminal (sharp + monospace), chosen from the dashboard and persisted per device
+- **Provides two selectable visual styles** (Classic rounded / Terminal sharp + monospace), dashboard-configurable and device-persisted, both with system-aware light/dark palettes;
+- **Toolbar icons respect `prefers-color-scheme`**—the puzzle-menu icon toggles light/dark variants automatically, and Terminal-style extension icons include both light and dark toolbar variants.
 - **Self-hosted fonts** — Inter, Meslo LG Mono, Noto Sans SC bundled with the extension; no external font request
-- **Toolbar icon follows `prefers-color-scheme`** — the puzzle-menu icon swaps between light and dark variants
-- **Custom group names** — rename any group inline; names persist locally across Chrome sessions
-- **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
-- **Save tabs for later** with a completion → archive flow and an in-dashboard archive list
+- **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
 
 ---
 
 ## What's new
 
-### v2.1.0
+### v0.2.1
 
 - **Selectable visual styles** — switch between Classic (rounded) and Terminal (sharp + monospace) from the dashboard; choice persists as `styleId`
 - **Self-hosted fonts** — Inter, Meslo LG Mono, Noto Sans SC bundled; no external font request
@@ -51,7 +50,7 @@ The agent will walk you through it. Takes about 1 minute.
 - **Domain-only grouping** — the old "Homepages" special-case bucket (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) is gone; same-label auto-merge handles the use cases
 - **Manifest version `0.2.1`** — pre-1.0 SemVer from here on
 
-### v2.0.0
+### v0.2.0
 
 - **Custom group names** — inline rename via the pencil icon; empty input or a value equal to the default reverts to the default label
 - **Auto-merge same-named groups** — two groups that share a label (custom or default) collapse into a single card; the merged card's tooltip lists every source domain
@@ -95,7 +94,7 @@ You open a new tab
   -> Click any tab title to jump to it
   -> Close groups you're done with
   -> Save tabs for later before closing them; completed items move to the archive
-  -> Toggle light/dark any time with the button in the section header
+  -> Light/dark theme follows your system preference automatically; override it by storing a `theme` value
 ```
 
 Everything runs inside the Chrome extension. No external server, no API calls, no data sent anywhere. Saved tabs, your theme choice, and your style selection are stored in `chrome.storage.local`.
