@@ -3,7 +3,16 @@
 
 const MAX_NAME_LENGTH = 50;
 const LOCAL_FILES_KEY = 'local-files';
-const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', customGroupNames: 'customGroupNames' };
+const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', themeId: 'themeId', customGroupNames: 'customGroupNames' };
+// Theme overlays: each non-default theme ships its own stylesheet in extension/,
+// referenced from index.html with `id` = `theme-<slug>` and `disabled` by default.
+// app.js enables exactly one at a time via applyTheme().
+const THEMES = [
+  { id: 'default', label: 'Default', overlayId: null },
+  { id: 'terminal-blue-sea', label: 'Blue Sea', overlayId: 'theme-blue-sea' },
+  { id: 'terminal-pistachio', label: 'Pistachio', overlayId: 'theme-pistachio' },
+];
+const DEFAULT_THEME_ID = 'default';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -14,6 +23,7 @@ const dataState = {
   customGroupNames: {},
   saved: [],
   theme: null,
+  themeId: DEFAULT_THEME_ID,
 };
 
 const uiState = {
@@ -329,12 +339,15 @@ function render() {
   const groups = mergeByLabel(buildGroups(dataState.tabs));
   lastGroups = groups;
   const realTabs = dataState.tabs.filter(isWebTab);
-  const themeIcon = currentTheme() === 'dark' ? ICONS.iconSun : ICONS.iconMoon;
+  const themeSegments = THEMES.map(t => {
+    const active = t.id === currentThemeId();
+    return `<button class="theme-segment" data-action="set-theme" data-theme="${t.id}" aria-pressed="${active}" title="${t.label} theme">${t.label}</button>`;
+  }).join('');
   const containerClass = uiState.firstRender ? 'container' : 'container no-anim';
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${groups.length ? `<section class="active-section"><div class="section-header"><button class="theme-toggle" data-action="toggle-theme" title="Toggle theme">${themeIcon}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Theme">${themeSegments}</div><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
   </div>`;
@@ -358,14 +371,23 @@ function currentTheme() {
   return dataState.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 }
 
+function currentThemeId() {
+  return THEMES.some(t => t.id === dataState.themeId) ? dataState.themeId : DEFAULT_THEME_ID;
+}
+
 function applyTheme() {
   document.documentElement.dataset.theme = currentTheme();
+  for (const theme of THEMES) {
+    if (!theme.overlayId) continue;
+    const link = document.getElementById(theme.overlayId);
+    if (link) link.disabled = currentThemeId() !== theme.id;
+  }
 }
 
 async function loadState() {
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.customGroupNames]: {} }),
+    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.themeId]: DEFAULT_THEME_ID, [STORAGE_KEYS.customGroupNames]: {} }),
   ]);
   dataState.tabs = tabs;
   // Read the original v1 shape too: completed/dismissed were booleans.
@@ -374,6 +396,7 @@ async function loadState() {
     completedAt: item.completedAt || (item.completed ? item.savedAt : null),
   }));
   dataState.theme = stored.theme;
+  dataState.themeId = stored.themeId;
   dataState.customGroupNames = Object.fromEntries(
     Object.entries(stored.customGroupNames || {})
       .map(([key, value]) => [key, tidyName(value)])
@@ -517,10 +540,11 @@ const uiActions = {
     const group = groupAt(el.dataset.group);
     if (group) openEditor(group);
   },
-  'toggle-theme': () => {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    dataState.theme = next;
-    chrome.storage.local.set({ [STORAGE_KEYS.theme]: next });
+  'set-theme': (el) => {
+    const nextId = el.dataset.theme;
+    if (!THEMES.some(t => t.id === nextId)) return;
+    dataState.themeId = nextId;
+    chrome.storage.local.set({ [STORAGE_KEYS.themeId]: nextId });
     applyTheme();
     render();
   },

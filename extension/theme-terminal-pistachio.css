@@ -1,0 +1,57 @@
+/* Tabulor · Terminal (Pistachio) theme overlay
+ * Inspired by terminal-css's Gruvbox-dark preset. Overrides the default
+ * Tabulor theme tokens to a sharp, monospaced terminal look. Activated by
+ * toggling this stylesheet's `disabled` attribute from app.js.
+ *
+ * Only Tabulor-specific selectors are overridden; layout/structure is
+ * owned by style.css.
+ */
+
+/* Gruvbox-dark palette */
+:root {
+  --ink: #ebdbb2;
+  --paper: #1d2021;
+  --card: #282828;
+  --elevated: #3c3836;
+  --line: #504945;
+  --muted: #a89984;
+  --amber: #8ec07c;       /* primary accent (was sage green in sketch) */
+  --sage: #b8bb26;        /* secondary accent */
+  --shadow: rgba(0, 0, 0, .55);
+  --radius-card: 0;       /* sharp corners, terminal feel */
+  --radius-input: 0;
+  --font-body: "Fira Code", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+}
+
+body {
+  font-family: var(--font-body);
+  background-image: none;  /* drop paper-noise overlay; terminal is flat */
+}
+
+/* Cards and inputs go square */
+.mission-card,
+.page-chip,
+.action-btn,
+.group-name-input,
+.theme-toggle,
+.theme-segment,
+.chip-action,
+.deferred-dismiss {
+  border-radius: 0 !important;
+}
+
+/* Mission-card top accent bar uses the pistachio accent instead of muted line */
+.mission-card::before { background: var(--line); }
+.mission-card.has-duplicates::before { background: var(--amber); }
+
+/* Theme segmented control: terminal-style border */
+.theme-segment {
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-body);
+}
+.theme-segment[aria-pressed="true"] {
+  color: var(--paper);
+  background: var(--amber);
+  border-color: var(--amber);
+}

@@ -36,6 +36,11 @@ function buildDomContext(appText = '') {
       activeElement: null,
       querySelector: selector => (selector === '#app' ? app : null),
       querySelectorAll: () => [],
+      // Simulate the theme overlay <link> elements shipped in index.html so
+      // applyTheme() can flip their `disabled` attribute without crashing.
+      getElementById: id => (id === 'theme-blue-sea' || id === 'theme-pistachio')
+        ? { disabled: true }
+        : null,
       addEventListener: () => {},
       documentElement: { dataset: {} },
       // Some tabulor paths call `el.matches?.(...)` on event targets.
