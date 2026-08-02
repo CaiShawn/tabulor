@@ -6,36 +6,17 @@ Tabulor is a Chrome Manifest V3 extension that replaces the new-tab page with a 
 
 ## Current development focus
 
-Compared with `main`, this branch currently includes:
+Compared with `main`, this branch is the integration line for active Tabulor development. Headline features:
 
-- **Classic and Terminal visual styles** selected from the dashboard
-- **System-aware light/dark palettes** for both styles
-- **Persistent style selection** stored as `styleId` in `chrome.storage.local`
-- **Self-hosted fonts**: Inter, Meslo LG Mono, and Noto Sans SC
-- **Domain-only grouping**, without the former homepage special-case bucket
-- **Custom group names and automatic same-label merging**
-- **Updated terminal-style extension icons**
+- **Selectable visual styles** — Classic and Terminal, persisted as `styleId`.
+- **System-aware light/dark palettes** for both styles.
+- **Self-hosted fonts** — Inter, Meslo LG Mono, Noto Sans SC; no external font request.
+- **Terminal-style extension icons** with light/dark toolbar variant.
+- **Domain-only grouping**, without the former homepage special-case bucket.
+
+For shipped work, in-progress items, backlog, and recent discussions beyond what `main` carries, see [`ROADMAP.md`](./ROADMAP.md).
 
 The branch is intentionally allowed to differ from the user-facing documentation on `main`. Release-facing installation and product copy should be finalized when changes are promoted.
-
-## Repository layout
-
-```text
-extension/
-  app.js             Core state, grouping, rendering, and Chrome API actions
-  index.html         New-tab page shell
-  style.css          Classic/Terminal tokens and component styles
-  manifest.json      Chrome Manifest V3 configuration
-  fonts/             Bundled fonts and attribution
-  icons/             Shipped extension icons
-
-tests/
-  editor.test.js     Node-based smoke tests
-  helpers/
-    chrome-stub.js   Chrome API and DOM test stubs
-```
-
-Local experiments, agent configuration, scratch files, and diagnostics should stay outside the tracked project tree or in paths covered by `.gitignore`. Keep them local and verify `git status` before committing.
 
 ## Development setup
 
@@ -55,13 +36,54 @@ git switch dev
 4. Select the repository's `extension/` directory.
 5. Open a new tab to run the extension.
 
-> **Reloading changes**
->
-> Refresh the new-tab page first. Chrome usually picks up changes to an unpacked extension automatically.
->
-> If a change is not reflected, use the extension card's **Reload** button. Other Chromium-based browsers may behave differently.
-
 No package installation or build step is currently required.
+
+### Reloading
+
+After loading, refresh any new-tab page to pick up changes to `extension/app.js`, `style.css`, or `offscreen.*`. Changes to `manifest.json` require a Reload on the `chrome://extensions` card.
+
+### Validation
+
+Run the relevant checks before proposing a commit:
+
+```bash
+node --check extension/app.js
+node --test tests/editor.test.js
+git diff --check
+```
+
+The smoke tests use `tests/helpers/chrome-stub.js`. When adding browser-dependent behavior, extend the shared stub instead of creating one-off mocks.
+
+For visual changes, also verify manually in Chrome:
+
+- Classic and Terminal styles
+- light and dark system modes
+- long domain and tab titles
+- custom group rename and same-label merge behavior
+- saved-tab interactions
+- extension reload with persisted storage
+
+## Important notes
+
+- **Agent configuration is personal.** The repository's `.gitignore` excludes `AGENTS.md` and `.pi/` for a reason — agent rules, retros, and routing files belong to the agent's local setup, not the project. Do not commit `AGENTS.md` or `.pi/` from somewhere else, do not remove those `.gitignore` lines, and do not add other agent-routing files to the tracked tree. Any change to `.gitignore` patterns that affects agent-personal paths should be proposed as a separate commit with explicit justification.
+- **Local experiments, drafts, and diagnostics stay outside the tracked tree** — paths like `.tmp/`, `.sketches/`, scratch scripts, and ad-hoc logs all belong under gitignored locations, not in `extension/` or `tests/`. Verify `git status` before committing.
+
+## Repository layout
+
+```text
+extension/
+  app.js             Core state, grouping, rendering, and Chrome API actions
+  index.html         New-tab page shell
+  style.css          Classic/Terminal tokens and component styles
+  manifest.json      Chrome Manifest V3 configuration
+  fonts/             Bundled fonts and attribution
+  icons/             Shipped extension icons
+
+tests/
+  editor.test.js     Node-based smoke tests
+  helpers/
+    chrome-stub.js   Chrome API and DOM test stubs
+```
 
 ## Architecture notes
 
@@ -122,30 +144,9 @@ personal grouping rules. When present, it should expose a global
 A missing file is harmless; the dashboard falls back to host-based
 grouping.
 
-## Validation
-
-Run the relevant checks before proposing a commit:
-
-```bash
-node --check extension/app.js
-node --test tests/editor.test.js
-git diff --check
-```
-
-The smoke tests use `tests/helpers/chrome-stub.js`. When adding browser-dependent behavior, extend the shared stub instead of creating one-off mocks.
-
-For visual changes, also verify manually in Chrome:
-
-- Classic and Terminal styles
-- light and dark system modes
-- long domain and tab titles
-- custom group rename and same-label merge behavior
-- saved-tab interactions
-- extension reload with persisted storage
-
 ## Agent workflow
 
-This repository can be used with any coding agent, but it does not prescribe a shared agent setup. Agent instructions are personal and tool-specific; keep them in ignored local files rather than adding them to the repository.
+This repository can be used with any coding agent, but it does not prescribe a shared agent setup. Agent instructions are personal and tool-specific — see "Important notes" above for the rule on keeping agent configuration local.
 
 A practical workflow is:
 
@@ -172,7 +173,6 @@ Use whichever local rules fit your own agent and workflow; no particular hidden 
 - `dev` is the active integration branch.
 - Keep each commit independently verifiable.
 - Use imperative commit subjects of at most 72 characters.
-- Do not commit local agent configuration, drafts, diagnostics, or other ignored files.
 - Do not rewrite shared branch history without confirming the impact.
 - Review `main...dev` before promoting changes.
 
