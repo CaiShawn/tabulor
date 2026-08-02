@@ -45,13 +45,13 @@ The agent will walk you through it. Takes about 1 minute.
 ### Core
 
 - **Group by domain** — open tabs cluster by site into cards
+- **Custom group names** — rename any group inline via the pencil icon; names persist locally across Chrome sessions
 - **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
 - **Light & dark themes** with a one-click toggle that follows your system preference
 - **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
 
 ### Highlights
 
-- **Custom group names** — rename any group inline; names persist locally across Chrome sessions
 - **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
 
 ---
