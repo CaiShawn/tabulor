@@ -1,3 +1,34 @@
+/* ============================================
+   Self-hosted fonts (no external network calls)
+   ============================================ */
+
+/* Inter (variable, Latin subset) */
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-latin-wght-normal.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Meslo LG Mono (Regular weight, subset — no Nerd Font icons) */
+@font-face {
+  font-family: "Meslo LG Mono";
+  src: url("fonts/meslo-lg-mono-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Noto Sans SC (Simplified Chinese subset) — CJK fallback for the terminal stack */
+@font-face {
+  font-family: "Noto Sans SC";
+  src: url("fonts/noto-sans-sc-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ink: #1a1613;
   --paper: #f8f5f0;
@@ -11,7 +42,6 @@
   --radius-sm: 5px;
   --radius-md: 6px;
   --radius-lg: 10px;
-  --font-classic: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 [data-theme="dark"] {
@@ -36,8 +66,25 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background: var(--paper);
-  font-family: var(--font-classic);
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-feature-settings: "tnum" 1;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Terminal style: applied to <body> when data-style="terminal" is active
+   (toggled by app.js via the .terminal class). Inherits down to all descendants. */
+.terminal,
+.terminal *,
+code,
+pre {
+  font-family: "Meslo LG Mono", "Noto Sans SC", monospace;
+  /* Meslo is monospace and ~25–30% wider per character than Inter's proportional
+     widths, which would otherwise make domain names ("github.com" / "developer.mozilla.org")
+     and tab titles wrap differently and bump card heights on style switch.
+     The two rules below bring Meslo's visual width closer to Inter's. */
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
 }
 
 .container {
@@ -55,7 +102,7 @@ h2, .mission-name, .empty-title {
 }
 
 .dashboard-columns { display: flex; align-items: flex-start; gap: 32px; }
-.active-section { flex: 1 1 50%; min-width: 0; }
+.active-section { flex: 2 1 0; min-width: 0; }
 
 .section-header {
   display: flex;
@@ -64,7 +111,7 @@ h2, .mission-name, .empty-title {
   margin-bottom: 16px;
 }
 
-.section-header h2 { flex: none; font-size: 18px; }
+.section-header h2 { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 
 .theme-segments { display: inline-flex; gap: 0; flex: none; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
 .theme-segment {
@@ -225,7 +272,7 @@ h2, .mission-name, .empty-title {
 .deferred-column {
   position: sticky;
   top: 28px;
-  flex: 1 1 50%;
+  flex: 1 1 0;
   min-width: 0;
   max-height: calc(100vh - 56px);
   overflow-y: auto;
@@ -291,8 +338,6 @@ h2, .mission-name, .empty-title {
   --radius-sm: 0;
   --radius-md: 0;
   --radius-lg: 0;
-  --font-terminal: "Fira Code", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
-  font-family: var(--font-terminal);
 }
 
 /* Terminal · dark (Pistachio / Gruvbox-dark) */

@@ -378,6 +378,8 @@ function applyTheme() {
   const root = document.documentElement;
   root.dataset.theme = currentTheme();
   root.dataset.style = currentStyleId();
+  // Switch the body font stack via the .terminal class (CSS keys off `.terminal`).
+  document.body.classList.toggle('terminal', currentStyleId() === 'terminal');
 }
 
 async function loadState() {
