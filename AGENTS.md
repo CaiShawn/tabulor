@@ -14,6 +14,7 @@ Before doing anything technical, tell the user what they're about to get:
 >
 > Here's what makes it great:
 > - **See all your open tabs at a glance** grouped by domain on a grid
+> - **Custom group names** rename any group inline via the pencil icon; names stick across sessions
 > - **Light & dark themes** with a one-click toggle that follows your system by default
 > - **Duplicate detection** flags when you have the same page open twice
 > - **Click any tab title to jump to it** even across different Chrome windows
@@ -83,7 +84,8 @@ Once the extension is loaded:
 > 5. **Click "Close all N tabs"** on a group to close the whole thing.
 > 6. **Duplicate tabs** are flagged with an amber "(2x)" badge. Click "Close duplicates" to keep one copy.
 > 7. **Save a tab for later** by clicking the bookmark icon before closing it. Saved tabs appear in the sidebar.
-> 8. **Toggle the theme** with the sun/moon button at the top of the section.
+> 8. **Rename a group** by clicking the pencil icon next to its title. Empty input or the default name reverts.
+> 9. **Toggle the theme** with the sun/moon button at the top of the section.
 >
 > That's it! No server to run, no config files. Everything works right away.
 
