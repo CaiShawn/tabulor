@@ -31,11 +31,8 @@ Desktop.ini
 *~
 
 # Local development tools
-/docs/superpowers/
 /.pi/
-/AGENT.md
+/AGENTS.md
 
-# Local sketch directories and files (kept for iteration, never pushed).
-# Already-tracked files inside `extension/icons/icon-sketches/` are explicitly
-# `git rm --cached`'d in this repo so they stop being tracked.
-/extension/icons/icon-sketches/
+# Experimental design drafts
+/.sketches/
