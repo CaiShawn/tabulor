@@ -275,6 +275,59 @@ h2, .mission-name, .empty-title {
 
 
 
+/* ---- Terminal style: classic theme tokens overridden, Fira Code, sharp corners. ---- */
+
+/* Terminal · light (Blue Sea) */
+[data-style="terminal"] {
+  --ink: #eceae5;
+  --paper: #153489;
+  --card: #1e44a8;
+  --elevated: #2962c4;
+  --line: #5ea5ee;
+  --muted: #a8c4ee;
+  --amber: #5ea5ee;
+  --sage: #82aaff;
+  --shadow: rgba(0, 0, 0, .45);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --font-body: "Fira Code", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+}
+
+/* Terminal · dark (Pistachio / Gruvbox-dark) */
+[data-style="terminal"][data-theme="dark"] {
+  --ink: #ebdbb2;
+  --paper: #1d2021;
+  --card: #282828;
+  --elevated: #3c3836;
+  --line: #504945;
+  --muted: #a89984;
+  --amber: #8ec07c;
+  --sage: #b8bb26;
+  --shadow: rgba(0, 0, 0, .55);
+}
+
+/* Terminal scope: force sharp corners regardless of where radius tokens live */
+[data-style="terminal"] .mission-card,
+[data-style="terminal"] .page-chip,
+[data-style="terminal"] .action-btn,
+[data-style="terminal"] .group-name-input,
+[data-style="terminal"] .theme-segment,
+[data-style="terminal"] .chip-action,
+[data-style="terminal"] .deferred-dismiss {
+  border-radius: 0;
+}
+
+[data-style="terminal"] .theme-segment {
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+[data-style="terminal"] .theme-segment[aria-pressed="true"] {
+  color: var(--paper);
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }
 
 @media (max-width: 800px) {

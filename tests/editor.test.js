@@ -36,11 +36,6 @@ function buildDomContext(appText = '') {
       activeElement: null,
       querySelector: selector => (selector === '#app' ? app : null),
       querySelectorAll: () => [],
-      // Simulate the theme overlay <link> elements shipped in index.html so
-      // applyTheme() can flip their `disabled` attribute without crashing.
-      getElementById: id => (id === 'theme-blue-sea' || id === 'theme-pistachio')
-        ? { disabled: true }
-        : null,
       addEventListener: () => {},
       documentElement: { dataset: {} },
       // Some tabulor paths call `el.matches?.(...)` on event targets.
@@ -79,14 +74,12 @@ async function loadAppInVm(initialStorage = {}) {
     console.log('smoke: customGroupNames round-trips through storage');
   }
 
-  // Case 3: pickRepGroup is the bucket sort comparator (no observable change yet,
-  // but we can call it to confirm shape)
+  // Case 3: pickRepGroup is the bucket sort comparator
   {
     const { ctx } = await loadAppInVm();
     const { pickRepGroup } = ctx.__test;
     const a = { key: 'a.com', tabs: [1], priority: 0 };
     const b = { key: 'b.com', tabs: [1, 2], priority: 0 };
-    // pickRepGroup(a, b) > 0 means a sorts after b — b has more tabs so b wins.
     assert.ok(pickRepGroup(a, b) > 0, 'a has fewer tabs so it sorts after b');
     console.log('smoke: pickRepGroup orders by tabs.length');
   }

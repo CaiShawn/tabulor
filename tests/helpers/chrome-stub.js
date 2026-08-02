@@ -13,7 +13,7 @@ function makeStorage(initial = {}) {
   let data = { ...initial };
   const listeners = new Set();
   return {
-    get: async defaults => ({ ...defaults, ...data }),
+    get: async defaults => { const out = { ...defaults }; for (const k of Object.keys(data)) if (data[k] !== undefined) out[k] = data[k]; return out; },
     set: async patch => {
       const before = { ...data };
       data = { ...data, ...patch };
