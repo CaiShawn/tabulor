@@ -14,12 +14,11 @@ Before doing anything technical, tell the user what they're about to get:
 >
 > Here's what makes it great:
 > - **See all your open tabs at a glance** grouped by domain on a grid
-> - **Custom group names** rename any group inline via the pencil icon; names stick across sessions
-> - **Light & dark themes** with a one-click toggle that follows your system by default
-> - **Duplicate detection** flags when you have the same page open twice
 > - **Click any tab title to jump to it** even across different Chrome windows
+> - **Close whole groups** with one click, or just close individual tabs
+> - **Custom group names** rename any group inline via the pencil icon; names stick across sessions
+> - **Duplicate detection** flags when you have the same page open twice
 > - **Save for later** bookmark individual tabs to a checklist before closing them
-> - **100% local** no server, no accounts, no data sent anywhere
 >
 > It's just a Chrome extension. Setup takes about 1 minute.
 
