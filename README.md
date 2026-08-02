@@ -1,126 +1,174 @@
-# Tabulor
+# Tabulor Development Branch
 
-**Keep tabs on your tabs.**
+`dev` is the integration branch for active Tabulor development. It contains work that may not yet be available on `main`, including experiments that are still being validated before release.
 
-Tabulor is a Chrome extension that replaces your new tab page with a dashboard of everything you have open. Tabs are grouped by domain.
+Tabulor is a Chrome Manifest V3 extension that replaces the new-tab page with a local dashboard for grouping, renaming, merging, saving, and reopening tabs.
 
-Light & dark themes. No server. No account. No external API calls. Just a Chrome extension.
+## Current development focus
 
----
+Compared with `main`, this branch currently includes:
 
-## Inspired by
+- **Classic and Terminal visual styles** selected from the dashboard
+- **System-aware light/dark palettes** for both styles
+- **Persistent style selection** stored as `styleId` in `chrome.storage.local`
+- **Self-hosted fonts**: Inter, Meslo LG Mono, and Noto Sans SC
+- **Domain-only grouping**, without the former homepage special-case bucket
+- **Custom group names and automatic same-label merging**
+- **Updated terminal-style extension icons**
 
-Tabulor is a personal rebrand and continuation of ideas from two excellent open-source projects:
+The branch is intentionally allowed to differ from the user-facing documentation on `main`. Release-facing installation and product copy should be finalized when changes are promoted.
 
-- [**tab-out**](https://github.com/zarazhangrui/tab-out) by [Zara](https://x.com/zarazhangrui) — the upstream foundation. Tabulor is forked from this project; most of the core behavior, grouping logic, and overall structure come from there.
-- [**tab-harbor**](https://github.com/V-IOLE-T/tab-harbor) by V-IOLE-T — a richer evolution of the same idea, adding saved sessions, todos, themes, custom backgrounds, and a more configurable workspace. Tabulor borrows inspiration from its broader product thinking.
+## Repository layout
 
-If you like Tabulor, please check out and star the original projects — they did the hard work.
+```text
+extension/
+  app.js             Core state, grouping, rendering, and Chrome API actions
+  index.html         New-tab page shell
+  style.css          Classic/Terminal tokens and component styles
+  manifest.json      Chrome Manifest V3 configuration
+  fonts/             Bundled fonts and attribution
+  icons/             Shipped extension icons
 
-## Recommendation
-
-There are also some awesome extensions you might like:
-
-- [**Session Buddy**](https://chromewebstore.google.com/detail/session-buddy-tab-bookmar/edacconmaakjimmfgnblocblbcdcpbko) by [sessionbuddy.com](https://sessionbuddy.com/) - Save and restore sessions, manage tabs and bookmarks, and stay organized with a powerful and trusted privacy-first session manager.
-- [**Tree Style Tab**](https://github.com/xingtanzjr/Tree-Style-Tab) by xingtanzjr - A tree-style tab manager for Chrome & Edge. Organize, search, and navigate your tabs visually.
-- [**Tab Session Manager**](https://github.com/sienori/Tab-Session-Manager) by sienori - Save and restore the state of browser windows and tabs. It also supports automatic saving.
-- [**TabFS**](https://github.com/osnr/TabFS) by osnr - a browser extension that mounts your browser tabs as a filesystem on your computer.
-
----
-
-## Install with a coding agent
-
-Send your coding agent (Claude Code, Codex, etc.) this repo and say **"install this"**:
-
+tests/
+  editor.test.js     Node-based smoke tests
+  helpers/
+    chrome-stub.js   Chrome API and DOM test stubs
 ```
-https://github.com/CaiShawn/tabulor
-```
 
-The agent will walk you through it. Takes about 1 minute.
+Local experiments, agent configuration, scratch files, and diagnostics should stay outside the tracked project tree or in paths covered by `.gitignore`. Keep them local and verify `git status` before committing.
 
----
+## Development setup
 
-## Features
-
-### Core
-
-- **Group by domain** — open tabs cluster by site into cards
-- **Custom group names** — rename any group inline via the pencil icon; names persist locally across Chrome sessions
-- **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
-
-### Highlights
-
-- **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
-
----
-
-## What's new
-
-### v2.0.0
-
-- **Custom group names** — inline rename via the pencil icon; empty input or a value equal to the default reverts to the default label
-- **Auto-merge same-named groups** — two groups that share a label (custom or default) collapse into a single card; the merged card's tooltip lists every source domain
-
-### Roadmap
-
-- **New theme styles** — additional visual themes beyond light/dark, opt-in from the dashboard
-
----
-
-## Manual Setup
-
-**1. Clone the repo**
+### 1. Clone and switch to `dev`
 
 ```bash
 git clone https://github.com/CaiShawn/tabulor.git
+cd tabulor
+git switch dev
 ```
 
-**2. Load the Chrome extension**
+### 2. Load the extension
 
-1. Open Chrome and go to `chrome://extensions`
-2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked**
-4. Navigate to the `extension/` folder inside the cloned repo and select it
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select the repository's `extension/` directory.
+5. Open a new tab to run the extension.
 
-**3. Open a new tab**
+> **Reloading changes**
+>
+> Refresh the new-tab page first. Chrome usually picks up changes to an unpacked extension automatically.
+>
+> If a change is not reflected, use the extension card's **Reload** button. Other Chromium-based browsers may behave differently.
 
-You'll see Tabulor.
+No package installation or build step is currently required.
 
----
+## Architecture notes
 
-## How it works
+### State and storage
 
+`extension/app.js` reads and writes local state through `chrome.storage.local`.
+
+Important keys include:
+
+| Key | Purpose |
+|---|---|
+| `deferred` | Saved tabs and their completion/archive state |
+| `theme` | Explicit light/dark value when present |
+| `styleId` | Active visual style: `classic` or `terminal` |
+| `customGroupNames` | User-defined labels keyed by group identifier |
+
+Storage schema changes should be treated as compatibility-sensitive even while the extension is unreleased.
+
+### Grouping
+
+Web tabs are grouped by hostname unless a custom local rule assigns another group key. Groups sharing the same display label are merged into one card. Representative selection favors:
+
+1. a group with a custom name;
+2. the local-files group;
+3. the group with more tabs;
+4. a deterministic lexicographic fallback.
+
+### Styling
+
+`extension/style.css` contains both visual systems:
+
+- `data-style="classic"` uses the original rounded dashboard presentation.
+- `data-style="terminal"` overrides color and radius tokens for the terminal presentation.
+- `data-theme="light|dark"` controls the active palette.
+- The `.terminal` body class applies the terminal font stack.
+
+Style and light/dark theme are separate state dimensions. New styles should preserve this separation rather than introduce a combined style-theme identifier.
+
+### Fonts
+
+Fonts are served from `extension/fonts/`; the extension makes no external font request. Attribution and source information belong in `extension/fonts/CREDITS.md`.
+
+## Validation
+
+Run the relevant checks before proposing a commit:
+
+```bash
+node --check extension/app.js
+node --test tests/editor.test.js
+git diff --check
 ```
-You open a new tab
-  -> Tabulor shows your open tabs grouped by domain
-  -> Click the pencil icon to rename a group; hover the title for the default label and source domains
-  -> Groups that share the same name (custom or default) collapse into one card
-  -> Click any tab title to jump to it
-  -> Close groups you're done with
-  -> Save tabs for later before closing them
-  -> Toggle light/dark any time with the button in the section header
+
+The smoke tests use `tests/helpers/chrome-stub.js`. When adding browser-dependent behavior, extend the shared stub instead of creating one-off mocks.
+
+For visual changes, also verify manually in Chrome:
+
+- Classic and Terminal styles
+- light and dark system modes
+- long domain and tab titles
+- custom group rename and same-label merge behavior
+- saved-tab interactions
+- extension reload with persisted storage
+
+## Agent workflow
+
+This repository can be used with any coding agent, but it does not prescribe a shared agent setup. Agent instructions are personal and tool-specific; keep them in ignored local files rather than adding them to the repository.
+
+A practical workflow is:
+
+1. Ask the agent to inspect the relevant tracked files and current Git state.
+2. Describe the desired outcome, constraints, and whether commits are authorized.
+3. Prefer the smallest complete change for clear, localized tasks.
+4. Require validation proportional to the change and a concise summary of affected files.
+5. Review the diff yourself before authorizing a commit or push.
+6. Check that ignored drafts, local instructions, and temporary artifacts have not entered the commit.
+
+Example prompt:
+
+```text
+Inspect the relevant tracked files, make the smallest complete change, run
+checks proportional to the change, and leave the result uncommitted for review.
+Do not add local agent configuration, drafts, or temporary files.
 ```
 
-Everything runs inside the Chrome extension. No external server, no API calls, no data sent anywhere. Saved tabs and your theme choice are stored in `chrome.storage.local`.
+Use whichever local rules fit your own agent and workflow; no particular hidden directory or rules-file layout is required.
 
----
+## Git conventions
 
-## Tech stack
+- `main` is the release/user-facing branch.
+- `dev` is the active integration branch.
+- Keep each commit independently verifiable.
+- Use imperative commit subjects of at most 72 characters.
+- Do not commit local agent configuration, drafts, diagnostics, or other ignored files.
+- Do not rewrite shared branch history without confirming the impact.
+- Review `main...dev` before promoting changes.
 
-| What | How |
-|------|-----|
-| Extension | Chrome Manifest V3 |
-| Storage | chrome.storage.local |
-| Theming | CSS variables + `prefers-color-scheme` |
+Example review commands:
 
----
+```bash
+git fetch origin
+git log --oneline --left-right origin/main...dev
+git diff --stat origin/main...dev
+git diff origin/main...dev
+```
 
-## License
+## Credits and license
+
+Tabulor is based on [tab-out](https://github.com/zarazhangrui/tab-out) by Zara Zhang and is inspired by [tab-harbor](https://github.com/V-IOLE-T/tab-harbor) by V-IOLE-T.
 
 MIT — see [`LICENSE`](./LICENSE).
-
-Based on [tab-out](https://github.com/zarazhangrui/tab-out) by Zara Zhang (MIT) and inspired by [tab-harbor](https://github.com/V-IOLE-T/tab-harbor) by V-IOLE-T (MIT).
-
----
-
-Maintained by [CaiShawn](https://github.com/CaiShawn)
