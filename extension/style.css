@@ -11,7 +11,7 @@
   --radius-sm: 5px;
   --radius-md: 6px;
   --radius-lg: 10px;
-  --font-body: "MesloLGM Nerd Font", "MesloLGM Nerd Font Mono", "Meslo LG M", Consolas, monospace;
+  --font-classic: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 [data-theme="dark"] {
@@ -36,7 +36,7 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background: var(--paper);
-  font-family: var(--font-body);
+  font-family: var(--font-classic);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -291,7 +291,8 @@ h2, .mission-name, .empty-title {
   --radius-sm: 0;
   --radius-md: 0;
   --radius-lg: 0;
-  --font-body: "Fira Code", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  --font-terminal: "Fira Code", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  font-family: var(--font-terminal);
 }
 
 /* Terminal · dark (Pistachio / Gruvbox-dark) */
