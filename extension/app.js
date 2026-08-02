@@ -2,17 +2,8 @@
 'use strict';
 
 const MAX_NAME_LENGTH = 50;
-const HOME_PAGES_KEY = '__landing-pages__';
 const LOCAL_FILES_KEY = 'local-files';
 const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', customGroupNames: 'customGroupNames' };
-const LANDING_RULES = [
-  { hostname: 'mail.google.com', test: (_path, url) => !/#(inbox|sent|search)\//.test(url) },
-  { hostname: 'x.com', pathExact: ['/home'] },
-  { hostname: 'www.linkedin.com', pathExact: ['/'] },
-  { hostname: 'github.com', pathExact: ['/'] },
-  { hostname: 'www.youtube.com', pathExact: ['/'] },
-  ...(typeof LOCAL_LANDING_PAGE_PATTERNS === 'undefined' ? [] : LOCAL_LANDING_PAGE_PATTERNS),
-];
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -161,17 +152,16 @@ function buildGroups(tabs) {
 
   for (const tab of tabs.filter(isWebTab)) {
     const customRule = custom.find(rule => ruleMatches(rule, tab.url));
-    const landing = !customRule && LANDING_RULES.some(rule => ruleMatches(rule, tab.url));
-    const key = customRule?.groupKey || (landing ? HOME_PAGES_KEY : hostname(tab.url));
+    const key = customRule?.groupKey || hostname(tab.url);
     if (!key) continue;
     if (!groups.has(key)) {
-      const defaultLabel = customRule?.groupLabel || (landing ? 'Homepages' : friendlyDomain(key));
+      const defaultLabel = customRule?.groupLabel || friendlyDomain(key);
       groups.set(key, {
         key,
         defaultLabel,
         label: customNameFor(key) || defaultLabel,
-        domain: !customRule && !landing && key !== LOCAL_FILES_KEY ? key : '',
-        priority: landing ? 2 : LANDING_RULES.some(rule => rule.hostname === key) ? 1 : 0,
+        domain: !customRule && key !== LOCAL_FILES_KEY ? key : '',
+        priority: 0,
         tabs: [],
       });
     }
@@ -200,14 +190,11 @@ function sortGroups(a, b) {
 // Merge groups that share the same display label (custom or default).
 // `rep` priority picks the group a user would expect to "own" the merged card:
 //   1. has a custom name override
-//   2. is the homepages bucket
-//   3. is local files
-//   4. higher landing priority
-//   5. more tabs
-//   6. lexicographic key (deterministic fallback)
+//   2. is local files
+//   3. more tabs
+//   4. lexicographic key (deterministic fallback)
 function pickRepGroup(a, b) {
-  const repBoost = g => (customNameFor(g.key) ? 4 : 0) + (g.key === HOME_PAGES_KEY ? 3 : 0)
-    + (g.key === LOCAL_FILES_KEY ? 2 : 0) + g.priority;
+  const repBoost = g => (customNameFor(g.key) ? 2 : 0) + (g.key === LOCAL_FILES_KEY ? 1 : 0);
   return repBoost(b) - repBoost(a) || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
 }
 

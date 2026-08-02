@@ -14,7 +14,6 @@ Before doing anything technical, tell the user what they're about to get:
 >
 > Here's what makes it great:
 > - **See all your open tabs at a glance** grouped by domain on a grid
-> - **Homepages group** pulls Gmail, X, LinkedIn, YouTube, GitHub homepages into one card for easy cleanup
 > - **Light & dark themes** with a one-click toggle that follows your system by default
 > - **Duplicate detection** flags when you have the same page open twice
 > - **Click any tab title to jump to it** even across different Chrome windows
@@ -79,9 +78,8 @@ Once the extension is loaded:
 >
 > Here's how it works:
 > 1. **Your open tabs are grouped by domain** in a grid layout.
-> 2. **Homepages** (Gmail inbox, X home, YouTube, etc.) are in their own group at the top.
-> 3. **Click any tab title** to jump directly to that tab.
-> 4. **Click the X** next to any tab to close just that one.
+> 2. **Click any tab title** to jump directly to that tab.
+> 3. **Click the X** next to any tab to close just that one.
 > 5. **Click "Close all N tabs"** on a group to close the whole thing.
 > 6. **Duplicate tabs** are flagged with an amber "(2x)" badge. Click "Close duplicates" to keep one copy.
 > 7. **Save a tab for later** by clicking the bookmark icon before closing it. Saved tabs appear in the sidebar.

@@ -2,7 +2,7 @@
 
 **Keep tabs on your tabs.**
 
-Tabulor is a Chrome extension that replaces your new tab page with a dashboard of everything you have open. Tabs are grouped by domain, with homepages (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) pulled into their own group.
+Tabulor is a Chrome extension that replaces your new tab page with a dashboard of everything you have open. Tabs are grouped by domain.
 
 Light & dark themes. No server. No account. No external API calls. Just a Chrome extension.
 
@@ -44,7 +44,7 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### Core
 
-- **Group by domain, homepages on top** — open tabs cluster by site; homepages (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) get their own card
+- **Group by domain** — open tabs cluster by site into cards
 - **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
 - **Light & dark themes** with a one-click toggle that follows your system preference
 - **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
@@ -95,7 +95,6 @@ You'll see Tabulor.
 ```
 You open a new tab
   -> Tabulor shows your open tabs grouped by domain
-  -> Homepages (163/QQ Mail, Bilibili, Weibo, etc.) get their own group at the top
   -> Click the pencil icon to rename a group; hover the title for the default label and source domains
   -> Groups that share the same name (custom or default) collapse into one card
   -> Click any tab title to jump to it
