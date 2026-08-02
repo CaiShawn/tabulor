@@ -386,6 +386,20 @@ function applyTheme() {
   // Guard `document.body` so the test stub (no body element) can still drive a
   // refresh() without a classList TypeError leaking into the test output.
   if (document.body) document.body.classList.toggle('terminal', currentStyleId() === 'terminal');
+  notifyTheme();
+}
+
+// Mirrors the resolved effective theme (dataState.theme override or
+// prefers-color-scheme) to the background service worker so the toolbar
+// action icon can swap to the matching light/dark variant. MV3 service
+// workers cannot register matchMedia listeners themselves; the new-tab page
+// is the only place we can observe OS color-scheme changes.
+function notifyTheme() {
+  const theme = currentTheme();
+  console.log('[tabulor-page] notifyTheme ->', theme, '(system dark =', matchMedia('(prefers-color-scheme: dark)').matches, ')');
+  try {
+    chrome.runtime?.sendMessage?.({ type: 'tabulor:theme-change', theme });
+  } catch { /* service worker not ready yet — background.js initializes on its own */ }
 }
 
 async function loadState() {
@@ -650,7 +664,13 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // need a fresh render.
   if (STORAGE_KEYS.customGroupNames in changes || STORAGE_KEYS.deferred in changes) scheduleRefresh();
 });
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!dataState.theme) applyTheme(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  // Only the OS-level signal flows through here; if the user has an explicit
+  // dataState.theme, applyTheme() (via storage change) has already pushed the
+  // notification. notifyTheme() is also called inside applyTheme() so the
+  // toolbar icon stays in sync whenever the dashboard re-renders.
+  if (!dataState.theme) applyTheme();
+});
 
 refresh().catch(error => {
   console.error('[tabulor]', error);

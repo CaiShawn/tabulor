@@ -3,7 +3,7 @@
   "name": "Tabulor",
   "version": "2.1.0-beta",
   "description": "Keep tabs on your tabs. New tab page that groups your open tabs by domain and lets you close them with style.",
-  "permissions": ["tabs", "activeTab", "storage", "favicon"],
+  "permissions": ["tabs", "activeTab", "storage", "favicon", "offscreen"],
   "chrome_url_overrides": { "newtab": "index.html" },
   "background": { "service_worker": "background.js" },
   "action": {
