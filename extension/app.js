@@ -252,15 +252,19 @@ function timeAgo(value) {
 }
 
 function tabTemplate(copies) {
+  // Each chip owns the full set of tab ids that share its URL so per-chip
+  // actions (focus/close/save) operate on the visible chip instead of always
+  // the first instance, which used to leak across duplicates.
   const tab = copies[0];
+  const ids = copies.map(t => t.id).join(',');
   const count = copies.length;
-  return `<div class="page-chip clickable${count > 1 ? ' chip-has-dupes' : ''}" data-action="focus" data-tab-id="${tab.id}" title="${esc(displayTitle(tab))}">
+  return `<div class="page-chip clickable${count > 1 ? ' chip-has-dupes' : ''}" data-action="focus" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="${esc(displayTitle(tab))}">
     ${faviconImage(tab, 'chip-favicon')}
     <span class="chip-text">${esc(displayTitle(tab))}</span>
     ${count > 1 ? `<span class="chip-dupe-badge">(${count}x)</span>` : ''}
     <div class="chip-actions">
-      <button class="chip-action chip-save" data-action="save" data-tab-id="${tab.id}" title="Save for later">☆</button>
-      <button class="chip-action chip-close" data-action="close" data-tab-id="${tab.id}" title="Close this tab">${ICONS.close}</button>
+      <button class="chip-action chip-save" data-action="save" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="Save for later">☆</button>
+      <button class="chip-action chip-close" data-action="close" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="Close this tab">${ICONS.close}</button>
     </div>
   </div>`;
 }
@@ -328,7 +332,7 @@ function savedTemplate() {
     ${archived.length ? `<div class="deferred-archive">
       <button class="archive-toggle ${uiState.archiveOpen ? 'open' : ''}" data-action="toggle-archive">⌄ Archive <span class="archive-count">(${archived.length})</span></button>
       <div class="archive-body" ${uiState.archiveOpen ? '' : 'hidden'}>
-        <input class="archive-search" id="archiveSearch" value="${esc(uiState.archiveQuery)}" placeholder="Search archived tabs...">
+        <input class="archive-search" id="archiveSearch" placeholder="Search archived tabs...">
         <div class="archive-list">${filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>'}</div>
       </div></div>` : ''}
   </aside>`;
@@ -379,7 +383,9 @@ function applyTheme() {
   root.dataset.theme = currentTheme();
   root.dataset.style = currentStyleId();
   // Switch the body font stack via the .terminal class (CSS keys off `.terminal`).
-  document.body.classList.toggle('terminal', currentStyleId() === 'terminal');
+  // Guard `document.body` so the test stub (no body element) can still drive a
+  // refresh() without a classList TypeError leaking into the test output.
+  if (document.body) document.body.classList.toggle('terminal', currentStyleId() === 'terminal');
 }
 
 async function loadState() {
@@ -394,7 +400,9 @@ async function loadState() {
     completedAt: item.completedAt || (item.completed ? item.savedAt : null),
   }));
   dataState.theme = stored.theme;
-  // Resolve styleId: prefer new key, fall back to legacy themeId.
+  // Resolve styleId against the registered style list; unknown or missing values
+  // fall back to the default. The legacy `themeId` key was never written, so
+  // there is no on-disk migration step to perform here.
   dataState.styleId = STYLES.some(s => s.id === stored.styleId) ? stored.styleId : DEFAULT_STYLE_ID;
   dataState.customGroupNames = Object.fromEntries(
     Object.entries(stored.customGroupNames || {})
@@ -403,14 +411,28 @@ async function loadState() {
   );
 }
 
+let refreshInFlight;
 async function refresh() {
-  await loadState();
-  applyTheme();
-  render();
+  // Coalesce concurrent refreshes so the storage.onChanged callback and the
+  // main-flow `await refresh()` don't race each other and overwrite each
+  // other's `loadState()` result.
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    await loadState();
+    applyTheme();
+    render();
+  })();
+  try { await refreshInFlight; }
+  finally { refreshInFlight = null; }
 }
 
 function findTab(id) {
   return dataState.tabs.find(tab => tab.id === Number(id));
+}
+
+function parseIds(value) {
+  if (!value) return [];
+  return [...new Set(value.split(',').map(Number).filter(Number.isFinite))];
 }
 
 async function setDeferred(update) {
@@ -435,6 +457,8 @@ function openEditor(group) {
   uiState.editingDraft = '';
   render();
 }
+
+const groupByKey = key => lastGroups.find(g => g.sources.some(s => s.key === key)) || null;
 
 function cancelEditor() {
   if (!uiState.editingKey) return;
@@ -467,11 +491,11 @@ async function commitEditor() {
   dataState.customGroupNames = nextNames;
   try {
     await chrome.storage.local.set({ customGroupNames: nextNames });
+    render();
   } catch (error) {
     dataState.customGroupNames = previousNames;
     console.error('[tabulor]', error);
   }
-  render();
 }
 
 async function closeWithEffect(ids) {
@@ -490,15 +514,14 @@ const tabActions = {
   },
   close: async (el, event) => {
     event.stopPropagation();
-    await closeWithEffect([el.dataset.tabId]);
+    await closeWithEffect(parseIds(el.dataset.tabIds));
   },
   save: async (el, event) => {
     event.stopPropagation();
     const tab = findTab(el.dataset.tabId);
     if (!tab) return;
     await setDeferred(items => [{ id: crypto.randomUUID(), url: tab.url, title: displayTitle(tab), savedAt: new Date().toISOString(), completedAt: null }, ...items]);
-    await removeTabs([tab.id]);
-    await refresh();
+    await closeWithEffect(parseIds(el.dataset.tabIds));
   },
   'close-group': async el => {
     const group = groupAt(el.dataset.group);
@@ -549,7 +572,8 @@ const uiActions = {
   },
   expand: el => {
     const overflow = el.previousElementSibling;
-    overflow.hidden = false; overflow.style.display = 'contents'; el.remove();
+    if (overflow) overflow.hidden = false;
+    el.remove();
   },
 };
 
@@ -582,12 +606,17 @@ document.addEventListener('input', event => {
   }
   if (target.id !== 'archiveSearch') return;
   uiState.archiveQuery = target.value;
+  renderArchiveList();
+});
+
+function renderArchiveList() {
   const archived = dataState.saved.filter(x => x.completedAt);
   const query = uiState.archiveQuery.trim().toLowerCase();
   const filtered = query.length < 2 ? archived : archived.filter(x =>
     (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query));
-  $('.archive-list').innerHTML = filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>';
-});
+  const list = $('.archive-list');
+  if (list) list.innerHTML = filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>';
+}
 
 document.addEventListener('keydown', event => {
   if (!event.target.matches('.group-name-input') || event.isComposing) return;
@@ -616,7 +645,9 @@ chrome.tabs.onUpdated.addListener(scheduleRefresh);
 chrome.tabs.onMoved.addListener(scheduleRefresh);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  // theme toggles are handled inline; customGroupNames needs a fresh render.
+  // style/theme switches are handled inline (applyTheme + set-style) and
+  // do not need a full refresh. customGroupNames and deferred state changes
+  // need a fresh render.
   if (STORAGE_KEYS.customGroupNames in changes || STORAGE_KEYS.deferred in changes) scheduleRefresh();
 });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!dataState.theme) applyTheme(); });

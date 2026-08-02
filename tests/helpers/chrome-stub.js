@@ -55,12 +55,23 @@ function makeWindowsApi() {
   return { update: async () => {} };
 }
 
+function makeRuntimeApi() {
+  // `getURL` is used by app.js to build `_favicon/` URLs. The listener stubs
+  // are kept so the same harness can drive `background.js` later.
+  return {
+    getURL: value => `chrome-extension://test/${value}`,
+    onInstalled: { addListener: () => {} },
+    onStartup: { addListener: () => {} },
+  };
+}
+
 function installChromeStub({ initialStorage = {} } = {}) {
   const storage = makeStorage(initialStorage);
   const tabs = makeTabsApi();
   const windows = makeWindowsApi();
+  const runtime = makeRuntimeApi();
   return {
-    runtime: { getURL: value => `chrome-extension://test/${value}` },
+    runtime,
     storage: { local: storage, onChanged: storage.onChanged },
     tabs,
     windows,
