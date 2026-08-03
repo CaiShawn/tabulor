@@ -27,6 +27,9 @@ Make the browser-native scrollbar on `.deferred-column` follow the active style:
 
 > Pending work, highest priority first.
 
+### Fix tag-delete group jumping
+Deleting a tag inside a group can cause the group to jump/scroll elsewhere, breaking rapid consecutive deletion. Likely tied to how groups are sorted; investigate ordering (e.g. re-sorting on each mutation or stable grouping) and make the selected/current group stay put during batch removals.
+
 ### Browser parity notes
 README mentions "Chrome usually picks up changes to an unpacked extension automatically", but the same has not been confirmed for Edge / Brave / Arc / Firefox. Capture observed behavior in a short note under `extension/` or in the release notes when `0.2.x` ships.
 
