@@ -276,6 +276,7 @@ h2, .mission-name, .empty-title {
   flex: 1 1 0;
   min-width: 0;
   max-height: calc(100vh - 56px);
+  padding-right: 10px;  /* keep content clear of the scrollbar gutter */
   overflow-y: auto;
 }
 
@@ -378,6 +379,20 @@ h2, .mission-name, .empty-title {
 [data-style="terminal"] .theme-segment[aria-pressed="true"] {
   background: var(--amber);
   border-color: var(--amber);
+}
+
+/* Terminal · theme the saved (deferred) column scrollbar: WebKit/Blink selectors
+   first, standard scrollbar-width/color as the fallback track. Square thumb in
+   --line so it reads as part of the terminal chrome, not a separate control. */
+[data-style="terminal"] .deferred-column {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+[data-style="terminal"] .deferred-column::-webkit-scrollbar { width: 10px; }
+[data-style="terminal"] .deferred-column::-webkit-scrollbar-track { background: transparent; }
+[data-style="terminal"] .deferred-column::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 0;
 }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }

@@ -3,7 +3,6 @@
 Status board for the `dev` branch. Sections:
 
 - **Recent discussions**
-- **What’s In progress**
 - **Backlog** (highest priority first)
 
 Shipped work history lives in `docs/v0.2-dev.md`, not here.
@@ -14,13 +13,6 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 
 - **README focus pointer.** Dev README's "Current development focus" now references this file so the two documents can evolve independently.
 - **Group as the core data structure.** Refactor `dataState.tabs` + `lastGroups` model so the group is the source of truth and the tab list is an input feed. Open questions and proposed shape to be discussed in a later session.
-
-## In progress
-
-> Work actively being implemented on `dev` at the moment.
-
-### Theme the saved-column scrollbar
-Make the browser-native scrollbar on `.deferred-column` follow the active style: WebKit/Blink selectors first, standard properties as fallback; square thumb + `--line` / `--muted` (or `--ink`) for terminal, subtle custom for classic. Three open questions on classic / thumb color / width still pending.
 
 ## Backlog
 
