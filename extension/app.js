@@ -3,7 +3,7 @@
 
 const MAX_NAME_LENGTH = 50;
 const LOCAL_FILES_KEY = 'local-files';
-const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', archiveOpen: 'archiveOpen' };
+const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', archiveOpen: 'archiveOpen', layout: 'openTabsLayout' };
 // Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
 // (Fira Code, saturated colors, sharp corners). Style is independent of the
 // light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
@@ -12,6 +12,7 @@ const STYLES = [
   { id: 'terminal', label: 'Terminal' },
 ];
 const DEFAULT_STYLE_ID = 'classic';
+const LAYOUTS = ['multi', 'single'];
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -23,6 +24,7 @@ const dataState = {
   saved: [],
   theme: null,
   styleId: DEFAULT_STYLE_ID,
+  layout: 'multi',
 };
 
 const uiState = {
@@ -57,7 +59,7 @@ const ICONS = {
   iconSun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
   iconMoon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
   chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>`,
-  undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
+  layout: `<span class="layout-icon"><svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="9" height="9"/><rect x="17" y="4" width="9" height="9"/><rect x="4" y="17" width="9" height="9"/><rect x="17" y="17" width="9" height="9"/></svg><span>/</span><svg viewBox="0 0 24 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="22" height="4"/><rect x="4" y="13" width="22" height="4"/><rect x="4" y="22" width="22" height="4"/></svg></span>`,
 };
 
 const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
@@ -161,7 +163,7 @@ function buildGroups(tabs) {
   const custom = configuredCustomRules();
   const groups = new Map();
 
-  for (const tab of tabs.filter(isWebTab)) {
+  for (const [order, tab] of tabs.filter(isWebTab).entries()) {
     const customRule = custom.find(rule => ruleMatches(rule, tab.url));
     const key = customRule?.groupKey || hostname(tab.url);
     if (!key) continue;
@@ -173,6 +175,7 @@ function buildGroups(tabs) {
         label: customNameFor(key) || defaultLabel,
         domain: !customRule && key !== LOCAL_FILES_KEY ? key : '',
         priority: 0,
+        order,
         tabs: [],
       });
     }
@@ -195,18 +198,18 @@ function withPages(group) {
 }
 
 function sortGroups(a, b) {
-  return b.priority - a.priority || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
+  const aOrder = Number.isFinite(a.order) ? a.order : Number.MAX_SAFE_INTEGER;
+  const bOrder = Number.isFinite(b.order) ? b.order : Number.MAX_SAFE_INTEGER;
+  return b.priority - a.priority || aOrder - bOrder || a.key.localeCompare(b.key);
 }
 
 // Merge groups that share the same display label (custom or default).
-// `rep` priority picks the group a user would expect to "own" the merged card:
-//   1. has a custom name override
-//   2. is local files
-//   3. more tabs
-//   4. lexicographic key (deterministic fallback)
+// Prefer a custom name, then local files, then the first tab position.
 function pickRepGroup(a, b) {
   const repBoost = g => (customNameFor(g.key) ? 2 : 0) + (g.key === LOCAL_FILES_KEY ? 1 : 0);
-  return repBoost(b) - repBoost(a) || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
+  const aOrder = Number.isFinite(a.order) ? a.order : Number.MAX_SAFE_INTEGER;
+  const bOrder = Number.isFinite(b.order) ? b.order : Number.MAX_SAFE_INTEGER;
+  return repBoost(b) - repBoost(a) || aOrder - bOrder || a.key.localeCompare(b.key);
 }
 
 function mergeByLabel(groups) {
@@ -311,7 +314,7 @@ function savedItemTemplate(item) {
 function archiveItemTemplate(item) {
   return `<div class="archive-item" data-saved-id="${esc(item.id)}"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="archive-item-title">${esc(item.title || item.url)}</a>
     <span class="archive-item-date">${timeAgo(item.completedAt || item.savedAt)}</span>
-    <button class="chip-action archive-action" data-action="restore" data-saved-id="${esc(item.id)}" title="Move back to Bookmark">${ICONS.undo}</button>
+    <button class="chip-action archive-action" data-action="restore" data-saved-id="${esc(item.id)}" title="Move back to Reading list">${ICONS.undo}</button>
     <button class="chip-action archive-action" data-action="dismiss" data-saved-id="${esc(item.id)}" title="Dismiss">${ICONS.close}</button></div>`;
 }
 
@@ -329,7 +332,7 @@ function savedTemplate() {
     (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query)) : archived;
 
   return `<aside class="deferred-column" id="deferredColumn">
-    <div class="section-header"><h2>Bookmark</h2><div class="section-line"></div>
+    <div class="section-header"><h2>Reading list</h2><div class="section-line"></div>
       <div class="section-count">${active.length ? plural(active.length, 'item') : ''}</div></div>
     <div class="deferred-list">${active.map(savedItemTemplate).join('')}</div>
     ${active.length ? '' : '<div class="deferred-empty">Nothing saved. Living in the moment.</div>'}
@@ -352,10 +355,11 @@ function render() {
     return `<button class="theme-segment" data-action="set-style" data-style="${s.id}" aria-pressed="${active}" title="${s.label} style">${s.label}</button>`;
   }).join('');
   const containerClass = uiState.firstRender ? 'container' : 'container no-anim';
+  const layout = LAYOUTS.includes(dataState.layout) ? dataState.layout : 'multi';
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout" aria-label="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout">${ICONS.layout}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
   </div>`;
@@ -410,7 +414,7 @@ function notifyTheme() {
 async function loadState() {
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.archiveOpen]: false }),
+    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.archiveOpen]: false, [STORAGE_KEYS.layout]: 'multi' }),
   ]);
   dataState.tabs = tabs;
   // Read the original v1 shape too: completed/dismissed were booleans.
@@ -429,6 +433,7 @@ async function loadState() {
       .filter(([key, value]) => key && value),
   );
   uiState.archiveOpen = !!stored.archiveOpen;
+  dataState.layout = LAYOUTS.includes(stored[STORAGE_KEYS.layout]) ? stored[STORAGE_KEYS.layout] : 'multi';
 }
 
 let refreshInFlight;
@@ -593,6 +598,11 @@ const uiActions = {
     dataState.styleId = nextId;
     chrome.storage.local.set({ [STORAGE_KEYS.styleId]: nextId });
     applyTheme();
+    render();
+  },
+  'toggle-layout': () => {
+    dataState.layout = dataState.layout === 'single' ? 'multi' : 'single';
+    chrome.storage.local.set({ [STORAGE_KEYS.layout]: dataState.layout });
     render();
   },
   expand: el => {

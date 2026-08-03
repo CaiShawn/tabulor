@@ -39,15 +39,16 @@ The agent will walk you through it. Takes about 1 minute.
 
 ## What's new
 
-### v0.2.2
+### v0.2.3
 
-- **Archive redesign** — the saved/archived column gains a persisted foldable header, a search field that filters from a single character, and per-item **restore** / **dismiss** actions
-- **Terminal-style saved-column scrollbar** — the archived column's scrollbar follows the active style so it reads as terminal chrome
+- **Layout toggle** — header icon flips the `Open tabs` region between multi-column (default) and single-column; preference persists alongside other layout settings
+- **Reading list rename** — right-column section relabeled from "Bookmark" to "Reading list" to match its semantic shape
+- **Stable group ordering** — groups now follow the first tab's position, so the current group stays put during rapid deletions
 
-### Roadmap
+## Roadmap
 
-- **Group as the core data structure** — refactor the in-memory model so the group is the source of truth and the tab list is an input feed
-- **Fix tag-delete group jumping** — keep the selected group in place during rapid consecutive tag deletions
+- Group as the core data structure — refactor the in-memory model so the group is the source of truth and the tab list is an input feed
+- Migrate saved section to chrome.readingList(core direction)
 
 ---
 
