@@ -53,7 +53,7 @@ git diff --check
 - **Agent configuration is personal.** `AGENTS.md` and `.pi/` are gitignored on purpose; do not commit them, remove those `.gitignore` lines, or add other agent-routing files to the tracked tree.
 - **Local experiments stay outside the tracked tree** — `.tmp/`, `.sketches/`, scratch scripts, ad-hoc logs. Verify `git status` before committing.
 
-- **Architecture snapshot**s and **Review note**s keyed by version — live under [`docs/`](./docs/).
+- **Versioned dev docs** (architecture, review, shipped history) live under [`docs/`](./docs/).
 
 ## Agent workflow
 
