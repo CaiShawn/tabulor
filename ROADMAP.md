@@ -12,7 +12,6 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 
 > Discussion that has not yet been promoted to a backlog entry, latest first.
 
-- **Archive module redesign.** Scope of the redesign (toggle handling, search UX, dedupe vs un-complete, theme tokens) still to be decided; not yet a backlog entry.
 - **README focus pointer.** Dev README's "Current development focus" now references this file so the two documents can evolve independently.
 - **Group as the core data structure.** Refactor `dataState.tabs` + `lastGroups` model so the group is the source of truth and the tab list is an input feed. Open questions and proposed shape to be discussed in a later session.
 
