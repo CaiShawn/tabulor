@@ -18,26 +18,13 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 - **i18n (中英双语切换).** Add zh/en language switching for the UI. No i18n (`_locales`, `chrome.i18n`) plumbing exists yet — all UI strings are hardcoded English.
 - **Flip dashboard columns horizontally.** Add a layout option to switch between `Open tabs → Reading list` and `Reading list → Open tabs`; persist the preference with the other layout settings.
 - **Manual light/dark toggle.** Theme currently auto-follows `prefers-color-scheme` (with a stored `theme` override + offscreen listener driving the toolbar icon); add a manual light/dark switcher.
+- **Switch Open tabs between single- and multi-column.** Header icon toggle persists the layout preference; multi is the default. Group ordering is unaffected.
+- **Group/tab ordering controls.** The current first-tab-position ordering is stable enough for now, but alternate ordering rules and their interaction with the group-as-core-data model should be revisited later.
 - **Group as the core data structure.** Refactor `dataState.tabs` + `lastGroups` model so the group is the source of truth and the tab list is an input feed. Open questions and proposed shape to be discussed in a later session.
 
 ## Backlog
 
 > Pending work, highest priority first.
-
-### Switch Open tabs between single- and multi-column
-Allow users to manually reorder tab chips inside a `.mission-card`. First version is within-group only; cross-group moves come later.
-
-Scope:
-- Add a drag handle to each `.page-chip` and implement left-click drag to reorder chips inside a group.
-- Provide a keyboard alternative: focus a chip, then use arrow keys or visible "move up/down" buttons to change its position.
-- Persist per-group manual order in `dataState` and use it to override the default sort for that group.
-- New tabs arriving in a manually ordered group append to the end and are briefly marked as new instead of triggering a full re-sort.
-
-Dependencies:
-- `Fix tag-delete group jumping` — both features need a stable ordering model that does not re-sort on every mutation.
-
-### Switch Open tabs between single- and multi-column
-Add a user toggle (section header action or settings entry) to flip the `Open tabs` region between the current CSS multi-column layout (`columns: 290px` on `.missions`) and a forced single column; persist the choice alongside the other layout prefs. Groups are now ordered by first tab position, so this is the next `Open tabs` UX pass.
 
 ### Migrate saved section to `chrome.readingList` (core direction)
 The right-column "Reading list" section is semantically a reading list, not a bookmark; today it is backed by `dataState.saved` in `chrome.storage.local`. Migrate the backing store to `chrome.readingList` so Tabulor's right column becomes a view onto Chrome's Reading List — Tabulor's differentiation shifts from "another save-for-later tool" to "Chrome Reading List, surfaced on the new tab page with grouping, count badge, and quick push from any open tab".
