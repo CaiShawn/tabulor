@@ -24,22 +24,25 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### Core
 
-- **Group by domain** — open tabs cluster by site; same-label groups (custom or default) collapse into one card
+- **Group by domain** — open tabs cluster by site; rename groups inline and they persist across sessions
 - **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
-- **Save tabs for later** with a completion → archive flow and an in-dashboard archive list
-- **Custom group names** — rename any group inline; names persist locally across Chrome sessions
-- **Auto-merge same-named groups** — give two groups the same label (custom or default) and they collapse into one card; hover the title to see every source domain
+- **Save tabs for later** — a completion → archive flow with an in-dashboard list
 
 ### Highlights
 
-- **Provides two selectable visual styles** (Classic rounded / Terminal sharp + monospace), dashboard-configurable and device-persisted, both with system-aware light/dark palettes;
-- **Toolbar icons respect `prefers-color-scheme`**—the puzzle-menu icon toggles light/dark variants automatically, and Terminal-style extension icons include both light and dark toolbar variants.
-- **Self-hosted fonts** — Inter, Meslo LG Mono, Noto Sans SC bundled with the extension; no external font request
-- **100% local** — saved tabs and preferences stay on your machine; no server, no account, no external API calls
+- **Bookmark module** — the saved/archived column has search, a foldable header, and per-item restore or dismiss
+- **Auto-merge same-named groups** — groups that share a label (custom or default) collapse into one card; hover the title to see every source domain
+- **Two selectable visual styles** (Classic rounded / Terminal sharp + monospace) with system-aware light/dark palettes; toolbar icons match `prefers-color-scheme`
+- **Self-contained** — self-hosted fonts and 100% local storage; no server, no account, no external API calls
 
 ---
 
 ## What's new
+
+### v0.2.2
+
+- **Archive redesign** — the saved/archived column gains a persisted foldable header, a search field that filters from a single character, and per-item **restore** / **dismiss** actions
+- **Terminal-style saved-column scrollbar** — the archived column's scrollbar follows the active style so it reads as terminal chrome
 
 ### v0.2.1
 
@@ -48,7 +51,6 @@ The agent will walk you through it. Takes about 1 minute.
 - **System-aware light/dark palettes** for both styles
 - **Terminal-style extension icons** — light and dark PNG / SVG variants; the toolbar icon now follows `prefers-color-scheme`
 - **Domain-only grouping** — the old "Homepages" special-case bucket (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) is gone; same-label auto-merge handles the use cases
-- **Manifest version `0.2.1`** — pre-1.0 SemVer from here on
 
 ### v0.2.0
 
@@ -58,7 +60,7 @@ The agent will walk you through it. Takes about 1 minute.
 ### Roadmap
 
 - **Group as the core data structure** — refactor the in-memory model so the group is the source of truth and the tab list is an input feed
-- **Themed saved-column scrollbar** — make the "Saved for later" column's vertical scrollbar follow the active style
+- **Fix tag-delete group jumping** — keep the selected group in place during rapid consecutive tag deletions
 
 ---
 
@@ -86,18 +88,12 @@ You'll see Tabulor.
 ## How it works
 
 ```
-You open a new tab
-  -> Tabulor shows your open tabs grouped by domain
-  -> Choose Classic or Terminal style from the dashboard
-  -> Click the pencil icon to rename a group; hover the title for the default label and source domains
-  -> Groups that share the same name (custom or default) collapse into one card
-  -> Click any tab title to jump to it
-  -> Close groups you're done with
-  -> Save tabs for later before closing them; completed items move to the archive
-  -> Light/dark theme follows your system preference automatically; override it by storing a `theme` value
+Open a new tab -> tabs group by domain -> rename or merge groups inline
+  -> jump to, close, or save tabs -> saved items move to the archive
+  -> pick Classic / Terminal style; light-dark follows your system
 ```
 
-Everything runs inside the Chrome extension. No external server, no API calls, no data sent anywhere. Saved tabs, your theme choice, and your style selection are stored in `chrome.storage.local`.
+Everything runs inside the Chrome extension — no server, no API calls, no data sent anywhere. Your tabs, style, theme, and saved items live in `chrome.storage.local`.
 
 ---
 
