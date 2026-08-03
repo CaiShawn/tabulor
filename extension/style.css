@@ -128,12 +128,21 @@ h2, .mission-name, .empty-title {
 .section-line { width: 100%; height: 1px; background: var(--line); }
 .section-count { flex: none; color: var(--muted); font-size: 11px; }
 
-.missions { columns: 290px; column-gap: 16px; }
+.missions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.mission-card {
+  margin: 0;
+}
 .mission-card {
   position: relative;
   display: inline-flex;
   width: 100%;
-  margin: 0 0 16px;
+  margin: 0;
+
   overflow: hidden;
   break-inside: avoid;
   border: 1px solid var(--line);

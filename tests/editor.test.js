@@ -79,10 +79,10 @@ async function loadAppInVm(initialStorage = {}) {
   {
     const { ctx } = await loadAppInVm();
     const { pickRepGroup } = ctx.__test;
-    const a = { key: 'a.com', tabs: [1], priority: 0 };
-    const b = { key: 'b.com', tabs: [1, 2], priority: 0 };
-    assert.ok(pickRepGroup(a, b) > 0, 'a has fewer tabs so it sorts after b');
-    console.log('smoke: pickRepGroup orders by tabs.length');
+    const a = { key: 'a.com', tabs: [1], priority: 0, order: 1 };
+    const b = { key: 'b.com', tabs: [1, 2], priority: 0, order: 4 };
+    assert.ok(pickRepGroup(a, b) < 0, 'earlier first-tab position wins');
+    console.log('smoke: pickRepGroup preserves first-tab order');
   }
 
   // Case 4: applyTheme writes dataset.theme and dataset.style and toggles body.terminal

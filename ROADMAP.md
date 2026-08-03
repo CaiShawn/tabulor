@@ -16,6 +16,7 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 - **Per-tag pin/star system.** A lightweight "favorite tags" row pinned to the top, separate from the main grouped list.
 - **Export / import of the whole group layout.** JSON in/out so a user can back up or share their tab dashboard.
 - **i18n (中英双语切换).** Add zh/en language switching for the UI. No i18n (`_locales`, `chrome.i18n`) plumbing exists yet — all UI strings are hardcoded English.
+- **Flip dashboard columns horizontally.** Add a layout option to switch between `Open tabs → Reading list` and `Reading list → Open tabs`; persist the preference with the other layout settings.
 - **Manual light/dark toggle.** Theme currently auto-follows `prefers-color-scheme` (with a stored `theme` override + offscreen listener driving the toolbar icon); add a manual light/dark switcher.
 - **Group as the core data structure.** Refactor `dataState.tabs` + `lastGroups` model so the group is the source of truth and the tab list is an input feed. Open questions and proposed shape to be discussed in a later session.
 
@@ -23,10 +24,7 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 
 > Pending work, highest priority first.
 
-### Fix tag-delete group jumping
-Deleting a tag inside a group can cause the group to jump/scroll elsewhere, breaking rapid consecutive deletion. Likely tied to how groups are sorted; investigate ordering (e.g. re-sorting on each mutation or stable grouping) and make the selected/current group stay put during batch removals.
-
-### Drag-to-reorder tabs within a group
+### Switch Open tabs between single- and multi-column
 Allow users to manually reorder tab chips inside a `.mission-card`. First version is within-group only; cross-group moves come later.
 
 Scope:
@@ -39,7 +37,7 @@ Dependencies:
 - `Fix tag-delete group jumping` — both features need a stable ordering model that does not re-sort on every mutation.
 
 ### Switch Open tabs between single- and multi-column
-Add a user toggle (section header action or settings entry) to flip the `Open tabs` region between the current CSS multi-column layout (`columns: 290px` on `.missions`) and a forced single column; persist the choice alongside the other layout prefs. Groups with `Fix tag-delete group jumping` as the next `Open tabs` UX pass.
+Add a user toggle (section header action or settings entry) to flip the `Open tabs` region between the current CSS multi-column layout (`columns: 290px` on `.missions`) and a forced single column; persist the choice alongside the other layout prefs. Groups are now ordered by first tab position, so this is the next `Open tabs` UX pass.
 
 ### Migrate saved section to `chrome.readingList` (core direction)
 The right-column "Reading list" section is semantically a reading list, not a bookmark; today it is backed by `dataState.saved` in `chrome.storage.local`. Migrate the backing store to `chrome.readingList` so Tabulor's right column becomes a view onto Chrome's Reading List — Tabulor's differentiation shifts from "another save-for-later tool" to "Chrome Reading List, surfaced on the new tab page with grouping, count badge, and quick push from any open tab".

@@ -161,7 +161,7 @@ function buildGroups(tabs) {
   const custom = configuredCustomRules();
   const groups = new Map();
 
-  for (const tab of tabs.filter(isWebTab)) {
+  for (const [order, tab] of tabs.filter(isWebTab).entries()) {
     const customRule = custom.find(rule => ruleMatches(rule, tab.url));
     const key = customRule?.groupKey || hostname(tab.url);
     if (!key) continue;
@@ -173,6 +173,7 @@ function buildGroups(tabs) {
         label: customNameFor(key) || defaultLabel,
         domain: !customRule && key !== LOCAL_FILES_KEY ? key : '',
         priority: 0,
+        order,
         tabs: [],
       });
     }
@@ -195,18 +196,18 @@ function withPages(group) {
 }
 
 function sortGroups(a, b) {
-  return b.priority - a.priority || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
+  const aOrder = Number.isFinite(a.order) ? a.order : Number.MAX_SAFE_INTEGER;
+  const bOrder = Number.isFinite(b.order) ? b.order : Number.MAX_SAFE_INTEGER;
+  return b.priority - a.priority || aOrder - bOrder || a.key.localeCompare(b.key);
 }
 
 // Merge groups that share the same display label (custom or default).
-// `rep` priority picks the group a user would expect to "own" the merged card:
-//   1. has a custom name override
-//   2. is local files
-//   3. more tabs
-//   4. lexicographic key (deterministic fallback)
+// Prefer a custom name, then local files, then the first tab position.
 function pickRepGroup(a, b) {
   const repBoost = g => (customNameFor(g.key) ? 2 : 0) + (g.key === LOCAL_FILES_KEY ? 1 : 0);
-  return repBoost(b) - repBoost(a) || b.tabs.length - a.tabs.length || a.key.localeCompare(b.key);
+  const aOrder = Number.isFinite(a.order) ? a.order : Number.MAX_SAFE_INTEGER;
+  const bOrder = Number.isFinite(b.order) ? b.order : Number.MAX_SAFE_INTEGER;
+  return repBoost(b) - repBoost(a) || aOrder - bOrder || a.key.localeCompare(b.key);
 }
 
 function mergeByLabel(groups) {
