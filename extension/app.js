@@ -311,7 +311,7 @@ function savedItemTemplate(item) {
 function archiveItemTemplate(item) {
   return `<div class="archive-item" data-saved-id="${esc(item.id)}"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="archive-item-title">${esc(item.title || item.url)}</a>
     <span class="archive-item-date">${timeAgo(item.completedAt || item.savedAt)}</span>
-    <button class="chip-action archive-action" data-action="restore" data-saved-id="${esc(item.id)}" title="Move back to Bookmark">${ICONS.undo}</button>
+    <button class="chip-action archive-action" data-action="restore" data-saved-id="${esc(item.id)}" title="Move back to Reading list">${ICONS.undo}</button>
     <button class="chip-action archive-action" data-action="dismiss" data-saved-id="${esc(item.id)}" title="Dismiss">${ICONS.close}</button></div>`;
 }
 
@@ -329,7 +329,7 @@ function savedTemplate() {
     (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query)) : archived;
 
   return `<aside class="deferred-column" id="deferredColumn">
-    <div class="section-header"><h2>Bookmark</h2><div class="section-line"></div>
+    <div class="section-header"><h2>Reading list</h2><div class="section-line"></div>
       <div class="section-count">${active.length ? plural(active.length, 'item') : ''}</div></div>
     <div class="deferred-list">${active.map(savedItemTemplate).join('')}</div>
     ${active.length ? '' : '<div class="deferred-empty">Nothing saved. Living in the moment.</div>'}
