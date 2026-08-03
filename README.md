@@ -44,19 +44,6 @@ The agent will walk you through it. Takes about 1 minute.
 - **Archive redesign** — the saved/archived column gains a persisted foldable header, a search field that filters from a single character, and per-item **restore** / **dismiss** actions
 - **Terminal-style saved-column scrollbar** — the archived column's scrollbar follows the active style so it reads as terminal chrome
 
-### v0.2.1
-
-- **Selectable visual styles** — switch between Classic (rounded) and Terminal (sharp + monospace) from the dashboard; choice persists as `styleId`
-- **Self-hosted fonts** — Inter, Meslo LG Mono, Noto Sans SC bundled; no external font request
-- **System-aware light/dark palettes** for both styles
-- **Terminal-style extension icons** — light and dark PNG / SVG variants; the toolbar icon now follows `prefers-color-scheme`
-- **Domain-only grouping** — the old "Homepages" special-case bucket (163/QQ Mail, Bilibili, Weibo, Xiaohongshu, Zhihu, etc.) is gone; same-label auto-merge handles the use cases
-
-### v0.2.0
-
-- **Custom group names** — inline rename via the pencil icon; empty input or a value equal to the default reverts to the default label
-- **Auto-merge same-named groups** — two groups that share a label (custom or default) collapse into a single card; the merged card's tooltip lists every source domain
-
 ### Roadmap
 
 - **Group as the core data structure** — refactor the in-memory model so the group is the source of truth and the tab list is an input feed
