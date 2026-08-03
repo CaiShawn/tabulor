@@ -1,0 +1,27 @@
+# AGENTS.md - AI 代理配置示例
+
+> 📌 **使用说明**：
+> 1. 复制此文件：`cp AGENTS.md.example AGENTS.md`
+> 2. 根据您的项目实际路径调整配置
+> 3. AGENTS.md 已被 .gitignore 忽略，不会误提交
+>
+> ⚠️ 注意：以下路径（`.pi/`）是示例，请根据您的项目结构调整
+
+---
+
+# AGENTS.md
+
+> `AGENTS.md` and `.pi/` are gitignored
+
+## Read order
+
+1. `.pi/agent-rules.md` — operational rules (scope, commits, testing, reporting). Read every session.
+2. `ROADMAP.md` (repo root) — dev branch status board. Tracked on git, shared with collaborators. Read every session.
+3. On demand: `.pi/retrospectives/` — past session reflections, only when the user asks to summarize / 做 retro.
+4. On change: `.pi/CHANGELOG.md` — Events: one entry each. Convergence: batch into one summary at work-unit close.
+
+## Don'ts (about the `.pi/` subsystem)
+
+- ❌ Read `retrospectives/` only on explicit user request — otherwise pollutes context.
+- ❌ Inline retro content into `agent-rules.md`.
+- ❌ Log `ROADMAP.md` changes in `CHANGELOG.md` — different files, different scopes.
