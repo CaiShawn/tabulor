@@ -74,13 +74,7 @@ You'll see Tabulor.
 
 ## How it works
 
-```mermaid
-flowchart LR
-    A["Open a new tab"] --> B["tabs group by domain"]
-    B --> C["rename or merge groups inline"]
-    C --> D["jump to, close, or save tabs"]
-    D --> E["saved items move to the archive"]
-```
+![How it works](docs/images/how-it-works.png)
 
 Everything runs inside the Chrome extension — no server, no API calls, no data sent anywhere. Your tabs, style, theme, and saved items live in `chrome.storage.local`.
 
