@@ -276,6 +276,7 @@ h2, .mission-name, .empty-title {
   flex: 1 1 0;
   min-width: 0;
   max-height: calc(100vh - 56px);
+  padding-right: 10px;  /* keep content clear of the scrollbar gutter */
   overflow-y: auto;
 }
 
@@ -284,7 +285,7 @@ h2, .mission-name, .empty-title {
   align-items: flex-start;
   gap: 9px;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(232, 226, 218, .65);
+  border-bottom: 1px solid var(--line);
 }
 
 .deferred-checkbox {
@@ -306,14 +307,20 @@ h2, .mission-name, .empty-title {
 .deferred-dismiss { width: 23px; height: 23px; background: transparent; }
 .deferred-empty { padding: 20px 0; color: var(--muted); font-size: 12px; font-style: italic; text-align: center; }
 
-.deferred-archive { margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--line); }
-.archive-toggle { width: 100%; padding: 4px 0; border: 0; color: var(--muted); background: transparent; font-size: 11px; text-align: left; cursor: pointer; }
+.deferred-archive { margin-top: 15px; }
+.archive-toggle.section-header { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.archive-toggle.section-header .archive-chevron { flex: none; display: grid; place-items: center; width: 18px; height: 18px; color: var(--muted); transition: transform .15s; }
+.archive-toggle.section-header .archive-chevron svg { width: 14px; height: 14px; }
+.archive-toggle.section-header[aria-expanded="true"] .archive-chevron { transform: rotate(180deg); }
+.archive-title { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
 .archive-body { padding-top: 10px; }
 .archive-search { width: 100%; margin-bottom: 9px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--card); font-size: 11px; }
 .archive-search:focus { border-color: var(--amber); }
-.archive-item { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(232, 226, 218, .55); font-size: 10px; }
+.archive-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 10px; }
 .archive-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-decoration: none; white-space: nowrap; }
 .archive-item-date { margin-left: auto; color: var(--muted); white-space: nowrap; }
+.archive-action { width: 20px; height: 20px; flex: none; }
+.archive-action svg { width: 12px; height: 12px; }
 
 .missions-empty-state { width: 100%; padding: 70px 20px; text-align: center; }
 .empty-checkmark { width: 42px; height: 42px; margin: 0 auto 13px; padding-top: 6px; border: 1px solid rgba(90, 122, 98, .25); border-radius: 50%; color: var(--sage); font-size: 22px; }
@@ -372,6 +379,20 @@ h2, .mission-name, .empty-title {
 [data-style="terminal"] .theme-segment[aria-pressed="true"] {
   background: var(--amber);
   border-color: var(--amber);
+}
+
+/* Terminal · theme the saved (deferred) column scrollbar: WebKit/Blink selectors
+   first, standard scrollbar-width/color as the fallback track. Square thumb in
+   --line so it reads as part of the terminal chrome, not a separate control. */
+[data-style="terminal"] .deferred-column {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+[data-style="terminal"] .deferred-column::-webkit-scrollbar { width: 10px; }
+[data-style="terminal"] .deferred-column::-webkit-scrollbar-track { background: transparent; }
+[data-style="terminal"] .deferred-column::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 0;
 }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }

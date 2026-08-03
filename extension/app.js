@@ -3,7 +3,7 @@
 
 const MAX_NAME_LENGTH = 50;
 const LOCAL_FILES_KEY = 'local-files';
-const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames' };
+const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', archiveOpen: 'archiveOpen' };
 // Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
 // (Fira Code, saturated colors, sharp corners). Style is independent of the
 // light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
@@ -56,6 +56,8 @@ const ICONS = {
   edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`,
   iconSun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
   iconMoon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+  chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>`,
+  undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
 };
 
 const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
@@ -307,8 +309,10 @@ function savedItemTemplate(item) {
 }
 
 function archiveItemTemplate(item) {
-  return `<div class="archive-item"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="archive-item-title">${esc(item.title || item.url)}</a>
-    <span class="archive-item-date">${timeAgo(item.completedAt || item.savedAt)}</span></div>`;
+  return `<div class="archive-item" data-saved-id="${esc(item.id)}"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="archive-item-title">${esc(item.title || item.url)}</a>
+    <span class="archive-item-date">${timeAgo(item.completedAt || item.savedAt)}</span>
+    <button class="chip-action archive-action" data-action="restore" data-saved-id="${esc(item.id)}" title="Move back to Bookmark">${ICONS.undo}</button>
+    <button class="chip-action archive-action" data-action="dismiss" data-saved-id="${esc(item.id)}" title="Dismiss">${ICONS.close}</button></div>`;
 }
 
 function safeUrl(url) {
@@ -321,16 +325,17 @@ function savedTemplate() {
   const archived = dataState.saved.filter(x => x.completedAt);
   if (!active.length && !archived.length) return '';
   const query = uiState.archiveQuery.trim().toLowerCase();
-  const filtered = query.length < 2 ? archived : archived.filter(x =>
-    (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query));
+  const filtered = query ? archived.filter(x =>
+    (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query)) : archived;
 
   return `<aside class="deferred-column" id="deferredColumn">
-    <div class="section-header"><h2>Saved for later</h2><div class="section-line"></div>
+    <div class="section-header"><h2>Bookmark</h2><div class="section-line"></div>
       <div class="section-count">${active.length ? plural(active.length, 'item') : ''}</div></div>
     <div class="deferred-list">${active.map(savedItemTemplate).join('')}</div>
     ${active.length ? '' : '<div class="deferred-empty">Nothing saved. Living in the moment.</div>'}
     ${archived.length ? `<div class="deferred-archive">
-      <button class="archive-toggle ${uiState.archiveOpen ? 'open' : ''}" data-action="toggle-archive">⌄ Archive <span class="archive-count">(${archived.length})</span></button>
+      <button class="archive-toggle section-header" data-action="toggle-archive" aria-expanded="${uiState.archiveOpen}">
+        <span class="archive-title">Archived</span><span class="section-line"></span><span class="section-count">${plural(archived.length, 'item')}</span><span class="archive-chevron">${ICONS.chevron}</span></button>
       <div class="archive-body" ${uiState.archiveOpen ? '' : 'hidden'}>
         <input class="archive-search" id="archiveSearch" placeholder="Search archived tabs...">
         <div class="archive-list">${filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>'}</div>
@@ -405,7 +410,7 @@ function notifyTheme() {
 async function loadState() {
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {} }),
+    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.archiveOpen]: false }),
   ]);
   dataState.tabs = tabs;
   // Read the original v1 shape too: completed/dismissed were booleans.
@@ -423,6 +428,7 @@ async function loadState() {
       .map(([key, value]) => [key, tidyName(value)])
       .filter(([key, value]) => key && value),
   );
+  uiState.archiveOpen = !!stored.archiveOpen;
 }
 
 let refreshInFlight;
@@ -566,7 +572,12 @@ const savedActions = {
   },
   'toggle-archive': () => {
     uiState.archiveOpen = !uiState.archiveOpen;
+    chrome.storage.local.set({ [STORAGE_KEYS.archiveOpen]: uiState.archiveOpen });
     render();
+  },
+  restore: async el => {
+    await setDeferred(items => items.map(x => x.id === el.dataset.savedId ? { ...x, completedAt: null } : x));
+    await refresh();
   },
 };
 
@@ -626,8 +637,8 @@ document.addEventListener('input', event => {
 function renderArchiveList() {
   const archived = dataState.saved.filter(x => x.completedAt);
   const query = uiState.archiveQuery.trim().toLowerCase();
-  const filtered = query.length < 2 ? archived : archived.filter(x =>
-    (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query));
+  const filtered = query ? archived.filter(x =>
+    (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query)) : archived;
   const list = $('.archive-list');
   if (list) list.innerHTML = filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>';
 }
@@ -659,9 +670,9 @@ chrome.tabs.onUpdated.addListener(scheduleRefresh);
 chrome.tabs.onMoved.addListener(scheduleRefresh);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  // style/theme switches are handled inline (applyTheme + set-style) and
-  // do not need a full refresh. customGroupNames and deferred state changes
-  // need a fresh render.
+  // style/theme/archiveOpen switches are handled inline (applyTheme, set-style,
+  // toggle-archive) and do not need a full refresh. customGroupNames and deferred
+  // state changes need a fresh render.
   if (STORAGE_KEYS.customGroupNames in changes || STORAGE_KEYS.deferred in changes) scheduleRefresh();
 });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
