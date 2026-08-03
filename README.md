@@ -74,10 +74,12 @@ You'll see Tabulor.
 
 ## How it works
 
-```
-Open a new tab -> tabs group by domain -> rename or merge groups inline
-  -> jump to, close, or save tabs -> saved items move to the archive
-  -> pick Classic / Terminal style; light-dark follows your system
+```mermaid
+flowchart LR
+    A["Open a new tab"] --> B["tabs group by domain"]
+    B --> C["rename or merge groups inline"]
+    C --> D["jump to, close, or save tabs"]
+    D --> E["saved items move to the archive"]
 ```
 
 Everything runs inside the Chrome extension — no server, no API calls, no data sent anywhere. Your tabs, style, theme, and saved items live in `chrome.storage.local`.
