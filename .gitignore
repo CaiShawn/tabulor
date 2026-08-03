@@ -31,6 +31,8 @@ Desktop.ini
 *~
 
 # Local development tools
-/docs/superpowers/
 /.pi/
 /AGENTS.md
+
+# Experimental design drafts
+/.sketches/
