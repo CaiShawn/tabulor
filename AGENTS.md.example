@@ -16,9 +16,10 @@
 ## Read order
 
 1. `.pi/agent-rules.md` — operational rules (scope, commits, testing, reporting). Read every session.
-2. `ROADMAP.md` (repo root) — dev branch status board. Tracked on git, shared with collaborators. Read every session.
+2. `docs/README.md` — canonical docs guide (file naming, structure conventions). Read every session.
 3. On demand: `.pi/retrospectives/` — past session reflections, only when the user asks to summarize / 做 retro.
 4. On change: `.pi/CHANGELOG.md` — Events: one entry each. Convergence: batch into one summary at work-unit close.
+5. On demand for status: `docs/ROADMAP.md` — dev branch status board (recently discussed / backlog).
 
 ## Don'ts (about the `.pi/` subsystem)
 

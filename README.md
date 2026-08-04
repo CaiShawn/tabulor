@@ -8,10 +8,10 @@ Tabulor is a Chrome Manifest V3 extension that replaces the new-tab page with a 
 
 `dev` carries everything `main` ships, plus the active integration line. As of v0.2.1 the user-facing surfaces (visual styles, fonts, icon set, grouping model) are aligned with `main`. The work still moving on `dev` only:
 
-- **Archive module redesign** — foldable section-header toggle (open/closed persisted), instant search, per-item restore + dismiss, tokenized theme borders; implemented on `dev`. See [`ROADMAP.md`](./ROADMAP.md) → *Recently discussed*.
+- **Archive module redesign** — foldable section-header toggle (open/closed persisted), instant search, per-item restore + dismiss, tokenized theme borders; implemented on `dev`. See [`ROADMAP.md`](./docs/ROADMAP.md) → *Recently discussed*.
 - **Group as the core data structure** — refactor the in-memory model so the group is the source of truth and the tab list is an input feed.
 
-For shipped work, in-progress items, backlog, and recent discussions, see [`ROADMAP.md`](./ROADMAP.md).
+For shipped work, in-progress items, backlog, and recent discussions, see [`ROADMAP.md`](./docs/ROADMAP.md).
 
 The branch is intentionally allowed to differ from the user-facing documentation on `main`. Release-facing installation and product copy should be finalized when changes are promoted.
 
