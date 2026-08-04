@@ -30,7 +30,7 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### Highlights
 
-- **Bookmark module** — the saved/archived column has search, a foldable header, and per-item restore or dismiss
+- **Reading List module** — the saved/archived column has search, a foldable header, and per-item restore or dismiss
 - **Auto-merge same-named groups** — groups that share a label (custom or default) collapse into one card; hover the title to see every source domain
 - **Two selectable visual styles** (Classic rounded / Terminal sharp + monospace) with system-aware light/dark palettes; toolbar icons match `prefers-color-scheme`
 - **Self-contained** — self-hosted fonts and 100% local storage; no server, no account, no external API calls
