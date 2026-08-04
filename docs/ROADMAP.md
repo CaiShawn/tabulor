@@ -18,7 +18,6 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 
 ### Group-as-core refactor (with dependent layout + ordering)
 
-- **Switch Open tabs between single- and multi-column.** Header icon toggle persists the layout preference; multi is the default. Group ordering is unaffected.
 - **Group/tab ordering controls.** The current first-tab-position ordering is stable enough for now, but alternate ordering rules and their interaction with the group-as-core-data model should be revisited later.
 - **Group as the core data structure.** Refactor `dataState.tabs` + `lastGroups` model so the group is the source of truth and the tab list is an input feed. Open questions and proposed shape to be discussed in a later session. Carries the narrow-width stacking fix (former backlog item: `Reading list` + `Archive` should stay visible below `Open tabs` at viewports that can't fit both columns comfortably).
 
