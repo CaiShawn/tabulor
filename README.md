@@ -32,12 +32,18 @@ The agent will walk you through it. Takes about 1 minute.
 
 - **Reading List on chrome.readingList** — the right column is a view onto Chrome's Reading List (Chrome 120+), with a local mirror for offline resilience and reactivity from signed-in Chrome devices
 - **Auto-merge same-named groups** — groups that share a label (custom or default) collapse into one card; hover the title to see every source domain
-- **Two selectable visual styles** (Classic rounded / Terminal sharp + monospace) with system-aware light/dark palettes; toolbar icons match `prefers-color-scheme`
+- **Two selectable visual styles** (Classic rounded / Terminal sharp + monospace) with system-aware light/dark palettes
 - **Self-contained** — self-hosted fonts and 100% local storage; no server, no account, no external API calls
 
 ---
 
 ## What's new
+
+### v0.2.5
+
+- **Toolbar icon no longer follows system theme.** The toolbar icon stays light regardless of system dark mode (the new-tab page still follows `prefers-color-scheme`). The service worker and offscreen document that made the swap possible are removed.
+- **CJK fallback moves to system fonts.** The 1.1 MB Noto Sans SC font is removed; the terminal font stack now falls back to system `PingFang SC` / `Microsoft YaHei`.
+- **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%). Self-hosted fonts went from three files / ~1.23 MB to two / ~123 KB.
 
 ### v0.2.4
 

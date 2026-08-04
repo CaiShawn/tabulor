@@ -8,10 +8,10 @@ Tabulor is a Chrome Manifest V3 extension that replaces the new-tab page with a 
 
 `dev` carries everything `main` ships, plus the active integration line. As of v0.2.1 the user-facing surfaces (visual styles, fonts, icon set, grouping model) are aligned with `main`. The work still moving on `dev` only:
 
-- **Archive module redesign** — foldable section-header toggle (open/closed persisted), instant search, per-item restore + dismiss, tokenized theme borders; implemented on `dev`. See [`ROADMAP.md`](./docs/ROADMAP.md) → *Recently discussed*.
+- **Archive module redesign** — foldable section-header toggle (open/closed persisted), instant search, per-item restore + dismiss, tokenized theme borders; implemented on `dev`. See [`ROADMAP.md`](./ROADMAP.md) → *Recently discussed*.
 - **Group as the core data structure** — refactor the in-memory model so the group is the source of truth and the tab list is an input feed.
 
-For shipped work, in-progress items, backlog, and recent discussions, see [`ROADMAP.md`](./docs/ROADMAP.md).
+For shipped work, in-progress items, backlog, and recent discussions, see [`ROADMAP.md`](./ROADMAP.md).
 
 The branch is intentionally allowed to differ from the user-facing documentation on `main`. Release-facing installation and product copy should be finalized when changes are promoted.
 
@@ -35,7 +35,7 @@ git switch dev
 
 No package installation or build step is currently required.
 
-> After loading, refresh any new-tab page to pick up changes to `extension/app.js`, `style.css`, or `offscreen.*`. Changes to `manifest.json` require a Reload on the `chrome://extensions` card.
+> After loading, refresh any new-tab page to pick up changes to `extension/app.js` or `style.css`. Changes to `manifest.json` require a Reload on the `chrome://extensions` card.
 
 ### Validation
 
@@ -52,7 +52,7 @@ git diff --check
 - **Agent configuration is personal.** `AGENTS.md` and `.pi/` are gitignored on purpose; do not commit them, remove those `.gitignore` lines, or add other agent-routing files to the tracked tree.
 - **Local experiments stay outside the tracked tree** — `.tmp/`, `.sketches/`, scratch scripts, ad-hoc logs. Verify `git status` before committing.
 
-- **Versioned dev docs** (architecture, review, shipped history) live under [`docs/`](./docs/).
+- **Versioned dev docs** (architecture, review, shipped history) live in this directory.
 
 ## Agent workflow
 
@@ -68,4 +68,4 @@ This repository does not prescribe a shared agent setup; agent configuration is 
 
 Tabulor is based on [tab-out](https://github.com/zarazhangrui/tab-out) by Zara Zhang and is inspired by [tab-harbor](https://github.com/V-IOLE-T/tab-harbor) by V-IOLE-T.
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT — see [`LICENSE`](../LICENSE).
