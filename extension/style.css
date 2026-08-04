@@ -91,7 +91,7 @@ pre {
   position: relative;
   max-width: 1300px;
   margin: auto;
-  padding: 48px 32px 72px;
+  padding: 48px 32px 32px;
 }
 
 .container.no-anim .mission-card { animation: none; }
@@ -102,7 +102,12 @@ h2, .mission-name, .empty-title {
 }
 
 .dashboard-columns { display: flex; align-items: flex-start; gap: 32px; }
-.active-section { flex: 2 1 0; min-width: 0; }
+.active-section {
+  flex: 2 1 0;
+  min-width: 0;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
 
 .section-header {
   display: flex;
@@ -127,6 +132,22 @@ h2, .mission-name, .empty-title {
 .theme-segment[aria-pressed="true"]:hover { color: var(--paper); background: var(--amber); }
 .section-line { width: 100%; height: 1px; background: var(--line); }
 .section-count { flex: none; color: var(--muted); font-size: 11px; }
+.section-count-text { display: inline-block; transform: translateY(-2px); }  /* nudge text up so its center sits on the section-line */
+.section-dot {
+  display: inline-block;            /* required for transform to apply on an inline span */
+  margin: 0 9px 0 8px;              /* right +1 widens dot→button gap (8+6=14 → 9+6=15); left keeps the dot→number spacing */
+  font-size: 12px;                  /* one notch above .section-count's 11px; reads as a more deliberate mid-line separator */
+  transform: translateY(-1px);      /* half the rejected -2px; nudge toward the lifted .section-count-text x-height */
+}
+
+/* Keep chrome bits in Inter even in Terminal — width consistency across styles (font swap
+   would otherwise make the dot and "Close all N tabs" button wider in Terminal). */
+[data-style="terminal"] .section-count-text,
+[data-style="terminal"] .section-dot,
+[data-style="terminal"] .close-tabs {
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
+}
 
 .missions {
   display: grid;
@@ -278,16 +299,26 @@ h2, .mission-name, .empty-title {
 }
 
 .action-btn:hover { color: var(--ink); border-color: var(--muted); }
-.section-count .action-btn { padding: 3px 8px; }
+.section-count .action-btn { padding: 3px 8px 3px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design) */
 
 .deferred-column {
   position: sticky;
   top: 28px;
   flex: 1 1 0;
   min-width: 0;
-  max-height: calc(100vh - 56px);
+  max-height: calc(100vh - 80px);
   padding-right: 10px;  /* keep content clear of the scrollbar gutter */
   overflow-y: auto;
+}
+
+/* Hide the scrollbar on the Open-tabs column only; the Reading-list (.deferred-column)
+   keeps its scrollbar so saved / archive items still show a scroll affordance. */
+.active-section {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* legacy Edge / IE */
+}
+.active-section::-webkit-scrollbar {
+  display: none;               /* Chromium / WebKit */
 }
 
 .deferred-item {
@@ -410,8 +441,8 @@ h2, .mission-name, .empty-title {
 @media (max-width: 800px) {
   .container { padding: 30px 18px 55px; }
   .dashboard-columns { flex-direction: column; }
-  .deferred-column { position: static; width: 100%; max-height: none; }
-  .active-section { width: 100%; }
+  .deferred-column { position: static; width: 100%; max-height: none; overflow: visible; }
+  .active-section { width: 100%; max-height: none; overflow: visible; }
 }
 
 @media (prefers-reduced-motion: reduce) {
