@@ -118,6 +118,12 @@ h2, .mission-name, .empty-title {
 
 .section-header h2 { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 
+/* Top-level Reading list header: centered and visibly larger than the
+   Unread / Done sub-sections below. No line / count / chevron — those
+   affordances only make sense on the collapsible sub-sections. */
+.reading-list-header { justify-content: center; margin-bottom: 22px; }
+.reading-list-header h2 { font-size: 22px; }
+
 .theme-segments { display: inline-flex; gap: 0; flex: none; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
 .theme-segment {
   display: inline-flex; align-items: center;
@@ -312,7 +318,7 @@ h2, .mission-name, .empty-title {
 }
 
 /* Hide the scrollbar on the Open-tabs column only; the Reading-list (.deferred-column)
-   keeps its scrollbar so saved / archive items still show a scroll affordance. */
+   keeps its scrollbar so Unread / read items still show a scroll affordance. */
 .active-section {
   scrollbar-width: none;       /* Firefox */
   -ms-overflow-style: none;    /* legacy Edge / IE */
@@ -329,39 +335,38 @@ h2, .mission-name, .empty-title {
   border-bottom: 1px solid var(--line);
 }
 
-.deferred-checkbox {
-  appearance: none;
-  width: 17px;
-  height: 17px;
+/* Checked indicator removed — Unread / Done rows no longer carry a checkbox.
+   The favicon sits in the left slot, and the mark-as-read / undo buttons sit
+   in the action slot to the left of the dismiss button. */
+.deferred-favicon {
+  width: 15px;
+  height: 15px;
   margin-top: 2px;
-  border: 2px solid var(--line);
-  border-radius: 4px;
-  cursor: pointer;
+  border-radius: 2px;
+  object-fit: contain;
   flex: none;
 }
-
-.deferred-checkbox:hover { border-color: var(--sage); }
 .deferred-info { min-width: 0; flex: 1; }
 .deferred-title { display: flex; align-items: center; font-size: 12px; line-height: 1.4; text-decoration: none; }
-.deferred-title:hover, .archive-item-title:hover { color: var(--amber); }
+.deferred-title:hover { color: var(--amber); }
 .deferred-meta { display: flex; gap: 8px; margin-top: 3px; color: var(--muted); font-size: 9px; }
 .deferred-dismiss { width: 23px; height: 23px; background: transparent; }
 .deferred-empty { padding: 20px 0; color: var(--muted); font-size: 12px; font-style: italic; text-align: center; }
 
-.deferred-archive { margin-top: 15px; }
-.archive-toggle.section-header { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
-.archive-toggle.section-header .archive-chevron { flex: none; display: grid; place-items: center; width: 18px; height: 18px; color: var(--muted); transition: transform .15s; }
-.archive-toggle.section-header .archive-chevron svg { width: 14px; height: 14px; }
-.archive-toggle.section-header[aria-expanded="true"] .archive-chevron { transform: rotate(180deg); }
-.archive-title { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
-.archive-body { padding-top: 10px; }
-.archive-search { width: 100%; margin-bottom: 9px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); outline: 0; background: var(--card); font-size: 11px; }
-.archive-search:focus { border-color: var(--amber); }
-.archive-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 10px; }
-.archive-item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; text-decoration: none; white-space: nowrap; }
-.archive-item-date { margin-left: auto; color: var(--muted); white-space: nowrap; }
-.archive-action { width: 20px; height: 20px; flex: none; }
-.archive-action svg { width: 12px; height: 12px; }
+.deferred-read,
+.deferred-unread { margin-top: 15px; }
+.read-toggle.section-header,
+.unread-toggle.section-header { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.read-toggle.section-header .read-chevron,
+.unread-toggle.section-header .unread-chevron { flex: none; display: grid; place-items: center; width: 18px; height: 18px; color: var(--muted); transition: transform .15s; }
+.read-toggle.section-header .read-chevron svg,
+.unread-toggle.section-header .unread-chevron svg { width: 14px; height: 14px; }
+.read-toggle.section-header[aria-expanded="true"] .read-chevron,
+.unread-toggle.section-header[aria-expanded="true"] .unread-chevron { transform: rotate(180deg); }
+.read-title,
+.unread-title { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.read-body,
+.unread-body { padding-top: 10px; }
 
 .missions-empty-state { width: 100%; padding: 70px 20px; text-align: center; }
 .empty-checkmark { width: 42px; height: 42px; margin: 0 auto 13px; padding-top: 6px; border: 1px solid rgba(90, 122, 98, .25); border-radius: 50%; color: var(--sage); font-size: 22px; }

@@ -25,20 +25,6 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 
 > Pending work, highest priority first.
 
-### Migrate saved section to `chrome.readingList` (core direction)
-The right-column "Reading list" section is semantically a reading list, not a bookmark; today it is backed by `dataState.saved` in `chrome.storage.local`. Migrate the backing store to `chrome.readingList` so Tabulor's right column becomes a view onto Chrome's Reading List — Tabulor's differentiation shifts from "another save-for-later tool" to "Chrome Reading List, surfaced on the new tab page with grouping, count badge, and quick push from any open tab".
-
-Scope:
-- Add `readingList` permission; gate the feature on Chrome 120+ minimum supported version.
-- Replace reads with `chrome.readingList.query({hasBeenRead: false})`; map the "Archived" subsection to `hasBeenRead: true` or `removeEntry`.
-- One-time data migration: import existing `dataState.saved` entries via `chrome.readingList.addEntry`, then drop the local key.
-- Add Tabulor-native affordances on top of the raw list: count badge in the section header, per-domain grouping matching the open-tab groups, "send current tab to Reading list" from any open tab.
-
-Open questions:
-- Local cache for offline render, or trust the API and show a graceful empty state on error?
-- De-dupe when a URL is in both Tabulor's old save list and Chrome Reading List?
-- Per-tag pin/star (existing discussion) — survives on Reading List entries, or moves to a Tabulor-only annotation layer?
-
 ### Export / import of the whole group layout
 JSON in/out so a user can back up or share their tab dashboard.
 

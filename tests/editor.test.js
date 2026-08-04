@@ -45,15 +45,18 @@ function buildDomContext(appText = '') {
   };
 }
 
-async function loadAppInVm(initialStorage = {}) {
+async function loadAppInVm(initialStorage = {}, initialReadingList = []) {
   const dom = buildDomContext();
-  const chrome = installChromeStub({ initialStorage });
+  const chrome = installChromeStub({ initialStorage, initialReadingList });
   const ctx = { ...dom, chrome };
   ctx.globalThis = ctx;
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'extension/app.js'), 'utf8')
     + '\n;globalThis.__test = { dataState, uiState, mergeByLabel, buildGroups, withPages, pickRepGroup, groupAt, lastGroups, applyTheme, currentStyleId, currentTheme, parseIds, notifyTheme };';
   vm.runInNewContext(source, ctx, { filename: 'extension/app.js' });
-  await settle();
+  // The migration path awaits N addEntry + remove + re-read inside loadState,
+  // plus a fresh refreshReadingList, so a handful of microtask hops is not
+  // enough on legacy-storage cases. 20 covers the worst case with margin.
+  await settle(20);
   return { ctx, chrome };
 }
 
@@ -62,7 +65,8 @@ async function loadAppInVm(initialStorage = {}) {
   {
     const { ctx } = await loadAppInVm();
     assert.strictEqual(JSON.stringify(ctx.__test.dataState.tabs), '[]');
-    assert.strictEqual(JSON.stringify(ctx.__test.dataState.saved), '[]');
+    assert.strictEqual(JSON.stringify(ctx.__test.dataState.readingList), '[]');
+    assert.strictEqual(ctx.__test.dataState.readingListError, false);
     assert.strictEqual(JSON.stringify(ctx.__test.dataState.customGroupNames), '{}');
     assert.strictEqual(JSON.stringify(ctx.__test.lastGroups), '[]');
     console.log('smoke: empty storage -> lastGroups is empty');
@@ -146,6 +150,32 @@ async function loadAppInVm(initialStorage = {}) {
     assert.doesNotThrow(() => ctx.__test.notifyTheme());
     console.log('smoke: notifyTheme degrades gracefully when sendMessage is missing');
     if (before !== undefined) ctx.chrome.runtime.sendMessage = before;
+  }
+
+  // Case 9: the one-time migration pushes legacy `deferred` entries into
+  // chrome.readingList (mapping completedAt -> hasBeenRead), drops the local
+  // key, and lets refreshReadingList populate dataState.readingList from the
+  // fresh API snapshot. Asserts each leg of that round-trip.
+  {
+    const legacy = {
+      deferred: [
+        { id: 'a', url: 'https://example.com/a', title: 'A', savedAt: 1700000000000, completedAt: null },
+        { id: 'b', url: 'https://example.com/b', title: 'B', savedAt: 1700000001000, completedAt: 1700000002000 },
+        { id: 'c', url: 'https://example.com/c', title: 'C', savedAt: 1700000003000, dismissed: true },
+      ],
+    };
+    const { ctx } = await loadAppInVm(legacy);
+    const entries = ctx.chrome._readingList._peek();
+    const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    assert.strictEqual(entries.length, 2, 'dismissed entries are skipped during migration');
+    assert.ok(eq(entries.map(e => e.url).sort(), ['https://example.com/a', 'https://example.com/b']));
+    const archived = entries.find(e => e.url === 'https://example.com/b');
+    assert.strictEqual(archived.hasBeenRead, true, 'completedAt maps to hasBeenRead');
+    const active = entries.find(e => e.url === 'https://example.com/a');
+    assert.strictEqual(active.hasBeenRead, false, 'null completedAt maps to hasBeenRead=false');
+    assert.ok(!('deferred' in ctx.chrome._storage._peek()), 'legacy deferred key is removed after migration');
+    assert.strictEqual(ctx.__test.dataState.readingList.length, 2, 'dataState.readingList picks up the migrated entries via refreshReadingList');
+    console.log('smoke: legacy deferred entries migrate to chrome.readingList and drop the local key');
   }
 
   console.log('all smoke tests passed');

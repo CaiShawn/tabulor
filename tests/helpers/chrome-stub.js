@@ -65,18 +65,70 @@ function makeRuntimeApi() {
   };
 }
 
-function installChromeStub({ initialStorage = {} } = {}) {
+// Minimal chrome.readingList stub. Keeps an in-memory array of entries keyed
+// by URL (matching the real API's uniqueness contract), fires onEntry* events
+// when entries are added/updated/removed, and exposes `_peek` so tests can
+// assert the underlying state without going through `query()`.
+function makeReadingListApi({ initialEntries = [] } = {}) {
+  let entries = initialEntries.map(entry => ({ ...entry }));
+  const listenerSets = {
+    onEntryAdded: new Set(),
+    onEntryUpdated: new Set(),
+    onEntryRemoved: new Set(),
+  };
+  const fire = (name, entry) => { for (const cb of listenerSets[name]) cb(entry); };
+  return {
+    query: async () => entries.map(entry => ({ ...entry })),
+    addEntry: async ({ url, title, hasBeenRead }) => {
+      if (!url) throw new Error('readingList.addEntry: url is required');
+      if (!entries.find(e => e.url === url)) {
+        const entry = {
+          url,
+          title: title || url,
+          hasBeenRead: !!hasBeenRead,
+          creationTime: Date.now(),
+          lastUpdateTime: Date.now(),
+        };
+        entries.push(entry);
+        fire('onEntryAdded', { ...entry });
+      }
+    },
+    updateEntry: async ({ url, title, hasBeenRead }) => {
+      const entry = entries.find(e => e.url === url);
+      if (!entry) return;
+      if (title !== undefined) entry.title = title;
+      if (hasBeenRead !== undefined) entry.hasBeenRead = !!hasBeenRead;
+      entry.lastUpdateTime = Date.now();
+      fire('onEntryUpdated', { ...entry });
+    },
+    removeEntry: async ({ url }) => {
+      const idx = entries.findIndex(e => e.url === url);
+      if (idx < 0) return;
+      const [entry] = entries.splice(idx, 1);
+      fire('onEntryRemoved', { ...entry });
+    },
+    onEntryAdded: { addListener: cb => listenerSets.onEntryAdded.add(cb) },
+    onEntryUpdated: { addListener: cb => listenerSets.onEntryUpdated.add(cb) },
+    onEntryRemoved: { addListener: cb => listenerSets.onEntryRemoved.add(cb) },
+    _peek: () => entries.map(entry => ({ ...entry })),
+  };
+}
+
+function installChromeStub({ initialStorage = {}, initialReadingList = [] } = {}) {
   const storage = makeStorage(initialStorage);
   const tabs = makeTabsApi();
   const windows = makeWindowsApi();
   const runtime = makeRuntimeApi();
+  const readingList = makeReadingListApi({ initialEntries: initialReadingList });
   return {
     runtime,
     storage: { local: storage, onChanged: storage.onChanged },
     tabs,
     windows,
-    // expose the underlying storage for assertions
+    readingList,
+    // expose the underlying storage / reading-list for assertions
     _storage: storage,
+    _readingList: readingList,
   };
 }
 
