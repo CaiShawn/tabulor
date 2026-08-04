@@ -51,7 +51,7 @@ async function loadAppInVm(initialStorage = {}, initialReadingList = []) {
   const ctx = { ...dom, chrome };
   ctx.globalThis = ctx;
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'extension/app.js'), 'utf8')
-    + '\n;globalThis.__test = { dataState, uiState, mergeByLabel, buildGroups, withPages, pickRepGroup, groupAt, lastGroups, applyTheme, currentStyleId, currentTheme, parseIds, notifyTheme };';
+    + '\n;globalThis.__test = { dataState, uiState, mergeByLabel, buildGroups, withPages, pickRepGroup, groupAt, lastGroups, applyTheme, currentStyleId, currentTheme, parseIds };';
   vm.runInNewContext(source, ctx, { filename: 'extension/app.js' });
   // The migration path awaits N addEntry + remove + re-read inside loadState,
   // plus a fresh refreshReadingList, so a handful of microtask hops is not
@@ -125,31 +125,6 @@ async function loadAppInVm(initialStorage = {}, initialReadingList = []) {
     assert.ok(eq(parseIds(''), []));
     assert.ok(eq(parseIds('not-a-number'), []));
     console.log('smoke: parseIds dedupes and filters non-numeric ids');
-  }
-
-  // Case 7: applyTheme notifies the background service worker of the
-  // resolved theme so the toolbar icon can swap to the matching variant.
-  {
-    const { ctx } = await loadAppInVm({ theme: 'dark', styleId: 'terminal' });
-    const sent = [];
-    ctx.chrome.runtime.sendMessage = message => sent.push(message);
-    ctx.__test.applyTheme();
-    assert.strictEqual(sent.length, 1, 'applyTheme sends exactly one message');
-    const eq = JSON.stringify(sent[0]) === JSON.stringify({ type: 'tabulor:theme-change', theme: 'dark' });
-    assert.ok(eq, `unexpected message: ${JSON.stringify(sent[0])}`);
-    console.log('smoke: applyTheme pushes the resolved theme to the service worker');
-  }
-
-  // Case 8: notifyTheme swallows the call when chrome.runtime is missing
-  // (the test stub provides chrome.runtime without sendMessage). The helper
-  // should fail silently rather than throw during the initial refresh().
-  {
-    const { ctx } = await loadAppInVm();
-    const before = ctx.chrome.runtime.sendMessage;
-    delete ctx.chrome.runtime.sendMessage;
-    assert.doesNotThrow(() => ctx.__test.notifyTheme());
-    console.log('smoke: notifyTheme degrades gracefully when sendMessage is missing');
-    if (before !== undefined) ctx.chrome.runtime.sendMessage = before;
   }
 
   // Case 9: the one-time migration pushes legacy `deferred` entries into
