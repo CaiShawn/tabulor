@@ -101,4 +101,8 @@ Tabulor is based on [tab-out](https://github.com/zarazhangrui/tab-out) by Zara Z
 
 MIT — see [`LICENSE`](./LICENSE).
 
-Maintained by [CaiShawn](https://github.com/CaiShawn)
+---
+
+**Author:** [CaiShawn](https://github.com/CaiShawn)
+
+**Terminal CSS:** courtesy of [terminal-css](https://github.com/panr/terminal-css/) by panr (The Unlicense)
