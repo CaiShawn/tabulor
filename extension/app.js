@@ -3,7 +3,14 @@
 
 const MAX_NAME_LENGTH = 50;
 const LOCAL_FILES_KEY = 'local-files';
-const STORAGE_KEYS = { deferred: 'deferred', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', archiveOpen: 'archiveOpen', layout: 'openTabsLayout' };
+// `readingListMirror` is a local shadow copy of `chrome.readingList`, populated
+// lazily on every successful query(). It is the render source so the dashboard
+// still has data to show if a later query() rejects, and it survives new-tab
+// page reloads. `chrome.readingList` is the source of truth; the mirror is a
+// cache, not a peer. We do not listen for our own mirror writes in
+// `storage.onChanged` — reactivity for external Reading-list changes comes
+// from `chrome.readingList.onEntryAdded/Updated/Removed`.
+const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout' };
 // Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
 // (Fira Code, saturated colors, sharp corners). Style is independent of the
 // light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
@@ -21,7 +28,14 @@ const app = $('#app');
 const dataState = {
   tabs: [],
   customGroupNames: {},
-  saved: [],
+  // Mirrors the entries in chrome.readingList (URL-keyed). Populated from the
+  // local `readingListMirror` cache on load and refreshed by
+  // `refreshReadingList()` thereafter.
+  readingList: [],
+  // True after a `chrome.readingList.query()` rejection. The UI uses this to
+  // surface a "showing cached" banner; the column still renders from the
+  // mirror so the user is not left with an empty state on a transient blip.
+  readingListError: false,
   theme: null,
   styleId: DEFAULT_STYLE_ID,
   layout: 'multi',
@@ -30,8 +44,8 @@ const dataState = {
 const uiState = {
   editingKey: null,
   editingDraft: '',
-  archiveOpen: false,
-  archiveQuery: '',
+  unreadExpanded: true,
+  readExpanded: false,
   firstRender: true,
 };
 
@@ -59,6 +73,8 @@ const ICONS = {
   iconSun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
   iconMoon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
   chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>`,
+  undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>`,
   layout: `<span class="layout-icon"><svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="9" height="9"/><rect x="17" y="4" width="9" height="9"/><rect x="4" y="17" width="9" height="9"/><rect x="17" y="17" width="9" height="9"/></svg><span>/</span><svg viewBox="0 0 24 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="22" height="4"/><rect x="4" y="13" width="22" height="4"/><rect x="4" y="22" width="22" height="4"/></svg></span>`,
 };
 
@@ -303,19 +319,28 @@ function groupTemplate(group, index) {
 
 function savedItemTemplate(item) {
   const domain = hostname(item.url).replace(/^www\./, '');
-  return `<div class="deferred-item" data-saved-id="${esc(item.id)}">
-    <input type="checkbox" class="deferred-checkbox" data-action="complete" data-saved-id="${esc(item.id)}">
+  return `<div class="deferred-item" data-saved-url="${esc(item.url)}">
+    ${faviconImage({ url: item.url }, 'deferred-favicon')}
     <div class="deferred-info"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="deferred-title">${esc(item.title || item.url)}</a>
-      <div class="deferred-meta"><span>${esc(domain)}</span><span>${timeAgo(item.savedAt)}</span></div></div>
-    <button class="deferred-dismiss" data-action="dismiss" data-saved-id="${esc(item.id)}" title="Dismiss">${ICONS.close}</button>
+      <div class="deferred-meta"><span>${esc(domain)}</span><span>${timeAgo(item.creationTime)}</span></div></div>
+    <button class="deferred-dismiss" data-action="complete" data-saved-url="${esc(item.url)}" title="Mark as read">${ICONS.check}</button>
+    <button class="deferred-dismiss" data-action="dismiss" data-saved-url="${esc(item.url)}" title="Dismiss">${ICONS.close}</button>
   </div>`;
 }
 
-function archiveItemTemplate(item) {
-  return `<div class="archive-item" data-saved-id="${esc(item.id)}"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="archive-item-title">${esc(item.title || item.url)}</a>
-    <span class="archive-item-date">${timeAgo(item.completedAt || item.savedAt)}</span>
-    <button class="chip-action archive-action" data-action="restore" data-saved-id="${esc(item.id)}" title="Move back to Reading list">${ICONS.undo}</button>
-    <button class="chip-action archive-action" data-action="dismiss" data-saved-id="${esc(item.id)}" title="Dismiss">${ICONS.close}</button></div>`;
+// One row in the collapsible "Done" section. Same visual structure as the
+// Unread row (favicon + info + action button + dismiss); the action button
+// is the inverse of Unread's "mark as read" — it restores the entry to the
+// Unread list via the `restore` action.
+function readItemTemplate(item) {
+  const domain = hostname(item.url).replace(/^www\./, '');
+  return `<div class="deferred-item" data-saved-url="${esc(item.url)}">
+    ${faviconImage({ url: item.url }, 'deferred-favicon')}
+    <div class="deferred-info"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="deferred-title">${esc(item.title || item.url)}</a>
+      <div class="deferred-meta"><span>${esc(domain)}</span><span>${timeAgo(item.lastUpdateTime || item.creationTime)}</span></div></div>
+    <button class="deferred-dismiss" data-action="restore" data-saved-url="${esc(item.url)}" title="Move back to Unread">${ICONS.undo}</button>
+    <button class="deferred-dismiss" data-action="dismiss" data-saved-url="${esc(item.url)}" title="Dismiss">${ICONS.close}</button>
+  </div>`;
 }
 
 function safeUrl(url) {
@@ -324,24 +349,27 @@ function safeUrl(url) {
 }
 
 function savedTemplate() {
-  const active = dataState.saved.filter(x => !x.completedAt);
-  const archived = dataState.saved.filter(x => x.completedAt);
-  if (!active.length && !archived.length) return '';
-  const query = uiState.archiveQuery.trim().toLowerCase();
-  const filtered = query ? archived.filter(x =>
-    (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query)) : archived;
-
+  const unread = dataState.readingList.filter(x => !x.hasBeenRead);
+  const read = dataState.readingList.filter(x => x.hasBeenRead);
+  if (!unread.length && !read.length) return '';
+  // Top-level "Reading list" header above two peer sub-sections, each
+  // independently collapsible with its own count badge: "Unread" and "Done".
+  // Search filtering within the list is deferred to the Search + keyboard-first plan.
   return `<aside class="deferred-column" id="deferredColumn">
-    <div class="section-header"><h2>Reading list</h2><div class="section-line"></div>
-      <div class="section-count">${active.length ? plural(active.length, 'item') : ''}</div></div>
-    <div class="deferred-list">${active.map(savedItemTemplate).join('')}</div>
-    ${active.length ? '' : '<div class="deferred-empty">Nothing saved. Living in the moment.</div>'}
-    ${archived.length ? `<div class="deferred-archive">
-      <button class="archive-toggle section-header" data-action="toggle-archive" aria-expanded="${uiState.archiveOpen}">
-        <span class="archive-title">Archived</span><span class="section-line"></span><span class="section-count">${plural(archived.length, 'item')}</span><span class="archive-chevron">${ICONS.chevron}</span></button>
-      <div class="archive-body" ${uiState.archiveOpen ? '' : 'hidden'}>
-        <input class="archive-search" id="archiveSearch" placeholder="Search archived tabs...">
-        <div class="archive-list">${filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>'}</div>
+    <div class="section-header reading-list-header"><h2>Reading list</h2></div>
+    <div class="deferred-unread">
+      <button class="unread-toggle section-header" data-action="toggle-unread" aria-expanded="${uiState.unreadExpanded}">
+        <span class="unread-title">Unread</span><span class="section-line"></span><span class="section-count">${plural(unread.length, 'item')}</span><span class="unread-chevron">${ICONS.chevron}</span></button>
+      <div class="unread-body" ${uiState.unreadExpanded ? '' : 'hidden'}>
+        <div class="deferred-list">${unread.map(savedItemTemplate).join('')}</div>
+        ${unread.length ? '' : '<div class="deferred-empty">Nothing saved. Living in the moment.</div>'}
+      </div>
+    </div>
+    ${read.length ? `<div class="deferred-read">
+      <button class="read-toggle section-header" data-action="toggle-read" aria-expanded="${uiState.readExpanded}">
+        <span class="read-title">Done</span><span class="section-line"></span><span class="section-count">${plural(read.length, 'item')}</span><span class="read-chevron">${ICONS.chevron}</span></button>
+      <div class="read-body" ${uiState.readExpanded ? '' : 'hidden'}>
+        <div class="read-list">${read.map(readItemTemplate).join('')}</div>
       </div></div>` : ''}
   </aside>`;
 }
@@ -359,7 +387,7 @@ function render() {
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout" aria-label="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout">${ICONS.layout}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count">${plural(groups.length, 'domain')} &nbsp;·&nbsp; <button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout" aria-label="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout">${ICONS.layout}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count"><span class="section-count-text">${plural(groups.length, 'domain')}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
   </div>`;
@@ -412,16 +440,39 @@ function notifyTheme() {
 }
 
 async function loadState() {
+  // One-time migration: if the legacy `deferred` key is still on disk, push
+  // each entry into chrome.readingList and drop the local key. The
+  // chrome.readingList API is idempotent by URL, so a re-run on a later load
+  // (after the key has been removed) is a cheap no-op against an empty list.
+  // The legacy schema stored `completedAt` as an ISO string; we map that to
+  // `hasBeenRead` so the Pages-you've-read section is preserved across the move.
+  // The key name is hardcoded because `STORAGE_KEYS.deferred` was retired
+  // with the migration; only this one call site still knows the legacy name.
+  const legacy = await chrome.storage.local.get('deferred');
+  const legacyItems = Array.isArray(legacy.deferred) ? legacy.deferred.filter(item => item && item.url && !item.dismissed) : [];
+  if (legacyItems.length) {
+    for (const item of legacyItems) {
+      try {
+        await chrome.readingList.addEntry({
+          url: item.url,
+          title: item.title || item.url,
+          hasBeenRead: !!(item.completedAt || item.completed),
+        });
+      } catch (error) {
+        console.error('[tabulor] migration addEntry failed for', item.url, error);
+      }
+    }
+    await chrome.storage.local.remove('deferred');
+  }
+
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ [STORAGE_KEYS.deferred]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.archiveOpen]: false, [STORAGE_KEYS.layout]: 'multi' }),
+    chrome.storage.local.get({ [STORAGE_KEYS.readingListMirror]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.unreadExpanded]: true, [STORAGE_KEYS.readExpanded]: false, [STORAGE_KEYS.layout]: 'multi' }),
   ]);
   dataState.tabs = tabs;
-  // Read the original v1 shape too: completed/dismissed were booleans.
-  dataState.saved = stored.deferred.filter(item => item && !item.dismissed).map(item => ({
-    ...item,
-    completedAt: item.completedAt || (item.completed ? item.savedAt : null),
-  }));
+  // The mirror is the immediate render source; refreshReadingList() overwrites
+  // it with the fresh API snapshot a few ms later.
+  dataState.readingList = Array.isArray(stored[STORAGE_KEYS.readingListMirror]) ? stored[STORAGE_KEYS.readingListMirror] : [];
   dataState.theme = stored.theme;
   // Resolve styleId against the registered style list; unknown or missing values
   // fall back to the default. The legacy `themeId` key was never written, so
@@ -432,7 +483,8 @@ async function loadState() {
       .map(([key, value]) => [key, tidyName(value)])
       .filter(([key, value]) => key && value),
   );
-  uiState.archiveOpen = !!stored.archiveOpen;
+  uiState.unreadExpanded = stored[STORAGE_KEYS.unreadExpanded] !== false;
+  uiState.readExpanded = !!stored[STORAGE_KEYS.readExpanded];
   dataState.layout = LAYOUTS.includes(stored[STORAGE_KEYS.layout]) ? stored[STORAGE_KEYS.layout] : 'multi';
 }
 
@@ -446,9 +498,54 @@ async function refresh() {
     await loadState();
     applyTheme();
     render();
+    await refreshReadingList();
+    registerReadingListListeners();
   })();
   try { await refreshInFlight; }
   finally { refreshInFlight = null; }
+}
+
+// Pull the current chrome.readingList snapshot, replace the mirror, and
+// re-render. On rejection (e.g. permission revoked mid-flight) we keep the
+// existing mirror so the column still renders, and flip `readingListError`
+// so the UI can surface a "showing cached" banner. Re-rendering twice (once
+// with the mirror, once with the fresh API data) is intentional — the first
+// render is immediate on load, the second replaces it within a frame.
+async function refreshReadingList() {
+  try {
+    const items = await chrome.readingList.query({});
+    const normalised = items.map(item => ({
+      url: item.url,
+      title: item.title || item.url,
+      hasBeenRead: !!item.hasBeenRead,
+      creationTime: item.creationTime,
+      lastUpdateTime: item.lastUpdateTime,
+    }));
+    dataState.readingList = normalised;
+    dataState.readingListError = false;
+    await chrome.storage.local.set({ [STORAGE_KEYS.readingListMirror]: normalised });
+    render();
+  } catch (error) {
+    console.error('[tabulor] readingList query failed', error);
+    dataState.readingListError = true;
+    render();
+  }
+}
+
+// External Reading-list changes (added from Chrome's side panel, another
+// extension, or another signed-in device after the next sync cycle) flow in
+// via the three entry events. We only react by re-querying — refreshReadingList
+// owns the mirror write and the render, so we do not also need to subscribe
+// to `storage.onChanged` for `readingListMirror` (our own write would loop).
+let readingListListenersRegistered = false;
+function registerReadingListListeners() {
+  if (readingListListenersRegistered) return;
+  if (!chrome.readingList) return; // not granted in this context (tests, older Chrome)
+  const onChange = () => { refreshReadingList().catch(error => console.error('[tabulor]', error)); };
+  chrome.readingList.onEntryAdded.addListener(onChange);
+  chrome.readingList.onEntryUpdated.addListener(onChange);
+  chrome.readingList.onEntryRemoved.addListener(onChange);
+  readingListListenersRegistered = true;
 }
 
 function findTab(id) {
@@ -458,11 +555,6 @@ function findTab(id) {
 function parseIds(value) {
   if (!value) return [];
   return [...new Set(value.split(',').map(Number).filter(Number.isFinite))];
-}
-
-async function setDeferred(update) {
-  dataState.saved = update(dataState.saved);
-  await chrome.storage.local.set({ [STORAGE_KEYS.deferred]: dataState.saved });
 }
 
 async function removeTabs(ids) {
@@ -544,8 +636,13 @@ const tabActions = {
   save: async (el, event) => {
     event.stopPropagation();
     const tab = findTab(el.dataset.tabId);
-    if (!tab) return;
-    await setDeferred(items => [{ id: crypto.randomUUID(), url: tab.url, title: displayTitle(tab), savedAt: new Date().toISOString(), completedAt: null }, ...items]);
+    if (!tab || !tab.url) return;
+    try {
+      await chrome.readingList.addEntry({ url: tab.url, title: displayTitle(tab), hasBeenRead: false });
+    } catch (error) {
+      console.error('[tabulor] addEntry failed', error);
+      return;
+    }
     await closeWithEffect(parseIds(el.dataset.tabIds));
   },
   'close-group': async el => {
@@ -566,23 +663,32 @@ const tabActions = {
 };
 
 const savedActions = {
+  // Mark an entry as read. `hasBeenRead: true` is how chrome.readingList
+  // expresses the read state, mirroring the Unread / Done split
+  // rendered by savedTemplate().
   complete: async el => {
-    const now = new Date().toISOString();
-    await setDeferred(items => items.map(x => x.id === el.dataset.savedId ? { ...x, completedAt: now } : x));
-    await refresh();
+    await chrome.readingList.updateEntry({ url: el.dataset.savedUrl, hasBeenRead: true });
+    await refreshReadingList();
   },
   dismiss: async el => {
-    await setDeferred(items => items.filter(x => x.id !== el.dataset.savedId));
-    await refresh();
+    await chrome.readingList.removeEntry({ url: el.dataset.savedUrl });
+    await refreshReadingList();
   },
-  'toggle-archive': () => {
-    uiState.archiveOpen = !uiState.archiveOpen;
-    chrome.storage.local.set({ [STORAGE_KEYS.archiveOpen]: uiState.archiveOpen });
+  // Move a read entry back into the Unread list. Triggered by the undo
+  // button on each row in the "Done" section.
+  restore: async el => {
+    await chrome.readingList.updateEntry({ url: el.dataset.savedUrl, hasBeenRead: false });
+    await refreshReadingList();
+  },
+  'toggle-read': () => {
+    uiState.readExpanded = !uiState.readExpanded;
+    chrome.storage.local.set({ [STORAGE_KEYS.readExpanded]: uiState.readExpanded });
     render();
   },
-  restore: async el => {
-    await setDeferred(items => items.map(x => x.id === el.dataset.savedId ? { ...x, completedAt: null } : x));
-    await refresh();
+  'toggle-unread': () => {
+    uiState.unreadExpanded = !uiState.unreadExpanded;
+    chrome.storage.local.set({ [STORAGE_KEYS.unreadExpanded]: uiState.unreadExpanded });
+    render();
   },
 };
 
@@ -639,18 +745,14 @@ document.addEventListener('input', event => {
     uiState.editingDraft = target.value;
     return;
   }
-  if (target.id !== 'archiveSearch') return;
-  uiState.archiveQuery = target.value;
-  renderArchiveList();
+  // Reading-list search filtering is deferred to the Search + keyboard-first
+  // plan; no input handlers attach to the Reading list section today.
 });
 
-function renderArchiveList() {
-  const archived = dataState.saved.filter(x => x.completedAt);
-  const query = uiState.archiveQuery.trim().toLowerCase();
-  const filtered = query ? archived.filter(x =>
-    (x.title || '').toLowerCase().includes(query) || (x.url || '').toLowerCase().includes(query)) : archived;
-  const list = $('.archive-list');
-  if (list) list.innerHTML = filtered.map(archiveItemTemplate).join('') || '<div class="deferred-meta">No results</div>';
+function renderReadList() {
+  const read = dataState.readingList.filter(x => x.hasBeenRead);
+  const list = $('.read-list');
+  if (list) list.innerHTML = read.map(readItemTemplate).join('');
 }
 
 document.addEventListener('keydown', event => {
@@ -680,10 +782,12 @@ chrome.tabs.onUpdated.addListener(scheduleRefresh);
 chrome.tabs.onMoved.addListener(scheduleRefresh);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  // style/theme/archiveOpen switches are handled inline (applyTheme, set-style,
-  // toggle-archive) and do not need a full refresh. customGroupNames and deferred
-  // state changes need a fresh render.
-  if (STORAGE_KEYS.customGroupNames in changes || STORAGE_KEYS.deferred in changes) scheduleRefresh();
+  // style/theme/unreadExpanded/readExpanded switches are handled inline
+  // (applyTheme, set-style, toggle-unread, toggle-read) and do not need a
+  // full refresh. customGroupNames changes need a fresh render.
+  // Reading-list reactivity flows through chrome.readingList.onEntry*
+  // events, not the storage mirror.
+  if (STORAGE_KEYS.customGroupNames in changes) scheduleRefresh();
 });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   // Only the OS-level signal flows through here; if the user has an explicit

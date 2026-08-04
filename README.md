@@ -4,7 +4,7 @@
 
 Tabulor is a Chrome extension that replaces your new tab page with a local dashboard that groups, renames, merges, and saves your open tabs — with a terminal-style view for those who like their dashboards sharp.
 
-Light & dark themes. No server. No account. No external API calls. Just a Chrome extension.
+Light & dark themes. No server. No account. No external server calls — only Chrome's built-in `readingList` API surfaces Chrome's Reading List. Just a Chrome extension.
 
 ---
 
@@ -26,11 +26,11 @@ The agent will walk you through it. Takes about 1 minute.
 
 - **Group by domain** — open tabs cluster by site; rename groups inline and they persist across sessions
 - **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
-- **Save tabs for later** — a completion → archive flow with an in-dashboard list
+- **Save tabs for later** — sends the current tab to Chrome's Reading List; the right column shows Unread and Done sub-lists
 
 ### Highlights
 
-- **Reading List module** — the saved/archived column has search, a foldable header, and per-item restore or dismiss
+- **Reading List on chrome.readingList** — the right column is a view onto Chrome's Reading List (Chrome 120+), with a local mirror for offline resilience and reactivity from signed-in Chrome devices
 - **Auto-merge same-named groups** — groups that share a label (custom or default) collapse into one card; hover the title to see every source domain
 - **Two selectable visual styles** (Classic rounded / Terminal sharp + monospace) with system-aware light/dark palettes; toolbar icons match `prefers-color-scheme`
 - **Self-contained** — self-hosted fonts and 100% local storage; no server, no account, no external API calls
@@ -39,16 +39,16 @@ The agent will walk you through it. Takes about 1 minute.
 
 ## What's new
 
-### v0.2.3
+### v0.2.4
 
-- **Layout toggle** — header icon flips the `Open tabs` region between multi-column (default) and single-column; preference persists alongside other layout settings
-- **Reading list rename** — right-column section relabeled from "Bookmark" to "Reading list" to match its semantic shape
-- **Stable group ordering** — groups now follow the first tab's position, so the current group stays put during rapid deletions
+- **Reading list on chrome.readingList** — the right-column section is now a view onto Chrome's Reading List (Chrome 120+); legacy saved entries migrate automatically on first load
+- **Unread + Done sections** — the right column renders two peer sub-sections under a centered "Reading list" umbrella; each is independently collapsible with its own count badge
+- **Per-item favicon** — each entry shows a site icon at the left slot
+- **Paired action button** — the checkbox became a paired "mark as read" / "undo" button
 
 ## Roadmap
 
 - Group as the core data structure — refactor the in-memory model so the group is the source of truth and the tab list is an input feed
-- Migrate saved section to chrome.readingList(core direction)
 
 ---
 
@@ -77,7 +77,7 @@ You'll see Tabulor.
 
 ![How it works](docs/images/how-it-works.png)
 
-Everything runs inside the Chrome extension — no server, no API calls, no data sent anywhere. Your tabs, style, theme, and saved items live in `chrome.storage.local`.
+Everything runs inside the Chrome extension — no server, no third-party API calls. Tabs, style, theme, and a local mirror of your Reading list live in `chrome.storage.local`; saved tabs themselves are surfaced from Chrome's built-in `readingList` API.
 
 ---
 
@@ -86,7 +86,7 @@ Everything runs inside the Chrome extension — no server, no API calls, no data
 | What | How |
 |------|-----|
 | Extension | Chrome Manifest V3 |
-| Storage | chrome.storage.local |
+| Storage | chrome.storage.local + chrome.readingList (Chrome 120+) |
 | Theming | CSS variables + `prefers-color-scheme`, per-style palette tokens |
 
 ---
