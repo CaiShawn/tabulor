@@ -697,6 +697,12 @@ function savedTemplate() {
 }
 
 function render() {
+  // <html lang> is part of the rendered document's metadata; keep it in
+  // sync with uiState.language so screen readers and browser translation
+  // tooling follow the user's toggle. Set here (not in applyTheme) so any
+  // caller of render() — including the test stub — picks up the new lang
+  // without needing to know about theme plumbing.
+  document.documentElement.lang = uiState.language === 'zh_CN' ? 'zh-CN' : 'en';
   const groups = mergeByLabel(buildGroups(dataState.tabs));
   lastGroups = groups;
   const realTabs = dataState.tabs.filter(isWebTab);

@@ -37,7 +37,7 @@ function buildDomContext(appText = '') {
       querySelector: selector => (selector === '#app' ? app : null),
       querySelectorAll: () => [],
       addEventListener: () => {},
-      documentElement: { dataset: {} },
+      documentElement: { dataset: {}, lang: '' },
       body: { classList: { toggle: () => {} } },
       // Some tabulor paths call `el.matches?.(...)` on event targets.
       // The initial render uses #app and $ to find it, so we don't need a real DOM.
@@ -51,7 +51,7 @@ async function loadAppInVm(initialStorage = {}, initialReadingList = [], initial
   const ctx = { ...dom, chrome };
   ctx.globalThis = ctx;
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'extension/app.js'), 'utf8')
-    + '\n;globalThis.__test = { dataState, uiState, mergeByLabel, buildGroups, withPages, pickRepGroup, groupAt, lastGroups, applyTheme, currentStyleId, currentTheme, parseIds, buildBackup, normaliseBackup, importBackup, t, plural, resolveLanguage };';
+    + '\n;globalThis.__app = app; globalThis.__test = { dataState, uiState, mergeByLabel, buildGroups, withPages, pickRepGroup, groupAt, lastGroups, applyTheme, currentStyleId, currentTheme, parseIds, buildBackup, normaliseBackup, importBackup, t, plural, resolveLanguage, render };';
   vm.runInNewContext(source, ctx, { filename: 'extension/app.js' });
   // The migration path awaits N addEntry + remove + re-read inside loadState,
   // plus a fresh refreshReadingList, so a handful of microtask hops is not
@@ -269,6 +269,33 @@ async function loadAppInVm(initialStorage = {}, initialReadingList = [], initial
     const { ctx } = await loadAppInVm({ uiLanguage: 'zh_CN' }, [], [], { uiLanguage: 'en' });
     assert.strictEqual(ctx.__test.uiState.language, 'zh_CN', 'stored uiLanguage overrides chrome.i18n.getUILanguage');
     console.log('smoke: stored uiLanguage overrides chrome.i18n.getUILanguage');
+  }
+
+  // Case 9c: end-to-end render + language switch — the rendered HTML reflects
+  // uiState.language immediately, <html lang> follows the toggle, and the
+  // language switcher template carries the correct aria-pressed per locale.
+  {
+    const { ctx } = await loadAppInVm();
+    assert.strictEqual(ctx.document.documentElement.lang, 'en', 'applyTheme sets <html lang="en"> by default');
+    assert.ok(ctx.__app.innerHTML.includes('>Open tabs<'), 'English render contains "Open tabs" heading');
+    assert.ok(ctx.__app.innerHTML.includes('>EN</button>'), 'language switcher renders EN segment');
+    assert.ok(ctx.__app.innerHTML.includes('data-language="en" aria-pressed="true"'), 'EN segment is initially pressed');
+    assert.ok(ctx.__app.innerHTML.includes('data-language="zh_CN" aria-pressed="false"'), 'zh_CN segment is initially unpressed');
+
+    ctx.__test.uiState.language = 'zh_CN';
+    ctx.__test.render();
+    assert.strictEqual(ctx.document.documentElement.lang, 'zh-CN', '<html lang> follows the toggle');
+    assert.ok(ctx.__app.innerHTML.includes('>打开的标签<'), 'Chinese render contains "打开的标签" heading');
+    assert.ok(ctx.__app.innerHTML.includes('data-language="zh_CN" aria-pressed="true"'), 'zh_CN segment is now pressed');
+    assert.ok(ctx.__app.innerHTML.includes('data-language="en" aria-pressed="false"'), 'EN segment is now unpressed');
+    assert.ok(!ctx.__app.innerHTML.includes('>Open tabs<'), 'no stale English heading after switch');
+
+    // Toggle back; render should revert.
+    ctx.__test.uiState.language = 'en';
+    ctx.__test.render();
+    assert.strictEqual(ctx.document.documentElement.lang, 'en');
+    assert.ok(ctx.__app.innerHTML.includes('>Open tabs<'));
+    console.log('smoke: render() and <html lang> follow uiState.language');
   }
 
   // Case 9: the one-time migration pushes legacy `deferred` entries into
