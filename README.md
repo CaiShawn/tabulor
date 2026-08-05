@@ -57,7 +57,10 @@ The agent will walk you through it. Takes about 1 minute.
 
 **Package slimming**
 
-- **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%). The toolbar icon's `prefers-color-scheme` auto-swap (and the offscreen document that drove it) is removed, and the 1.1 MB Noto Sans SC fallback is dropped in favor of system `PingFang SC` / `Microsoft YaHei`; the new-tab page itself still follows the system color scheme.
+- **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%).
+  - Toolbar icon no longer follows the system color scheme; the offscreen document that drove it is removed.
+  - Noto Sans SC fallback dropped; the terminal stack falls back to system `PingFang SC` / `Microsoft YaHei`.
+  - The new-tab page itself still follows `prefers-color-scheme`.
 
 ## Roadmap
 
