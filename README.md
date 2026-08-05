@@ -48,12 +48,12 @@ The agent will walk you through it. Takes about 1 minute.
 
 **New features**
 
-- **English and Simplified Chinese.** The UI ships in two languages with a bottom-left `EN / 中` switcher. First load follows `chrome.i18n.getUILanguage()`; the choice is persisted afterwards. Reading-list timestamps, plurals, and the rest of the UI re-localize on switch.
-- **Backup and restore.** The `Backup` menu next to `Close all` exports a versioned JSON snapshot of the dashboard (open tabs, custom group names, Reading list, layout, theme, style) and re-imports it as a merge — existing tabs and Reading-list URLs are preserved.
+- **English and Simplified Chinese.** Bottom-left `EN / 中` switcher. The choice is persisted afterwards; Reading-list timestamps, plurals, and the rest of the UI re-localize on switch.
+- **Backup and restore.** `Backup` menu next to `Close all` exports a versioned JSON snapshot of the dashboard and re-imports it as a merge with existing data.
 
 **UI changes**
 
-- **Icon refresh.** Redesigned to white outline on Terminal Blue Sea `--card` (`#1e44a8`); card geometry refined to 96×64 (3:2), `>` stroke-width 6, `_` height 4. The icon now appears centered at the top of the README.
+- **Icon refresh.** White outline on Terminal Blue Sea. The icon now appears centered at the top of the README.
 
 **Package slimming**
 
