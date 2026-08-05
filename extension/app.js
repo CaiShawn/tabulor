@@ -447,8 +447,7 @@ function groupTemplate(group, index) {
       <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="${esc(t('renameGroupTitle'))}" aria-label="${esc(t('renameAria', group.label))}">${ICONS.edit}</button>`;
   return `<article class="mission-card domain-card${duplicates ? ' has-duplicates' : ''}" data-group="${index}">
     <div class="mission-content">
-      <div class="mission-top"><div class="mission-title">${titleHtml}</div>
-        <span class="open-tabs-badge">${ICONS.tabs}${t('tabsOpenBadge', group.tabs.length)}</span>${duplicateBadge}</div>
+      <div class="mission-top"><div class="mission-title">${titleHtml}</div>${duplicateBadge}</div>
       <div class="mission-pages">${visible.map(tabTemplate).join('')}
         ${hidden.length ? `<div class="page-chips-overflow" hidden>${hidden.map(tabTemplate).join('')}</div>
           <div class="page-chip page-chip-overflow clickable" data-action="expand">+${hidden.length} more</div>` : ''}
