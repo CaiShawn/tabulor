@@ -383,12 +383,14 @@ h2, .mission-name, .empty-title {
   flex: 1 1 0;
   min-width: 0;
   max-height: calc(100vh - 80px);
-  padding-right: 10px;  /* keep content clear of the scrollbar gutter */
   overflow-y: auto;
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* legacy Edge / IE */
 }
+.deferred-column::-webkit-scrollbar { display: none; }  /* Chromium / WebKit — scroll programmatically still works, no visible scrollbar. */
 
-/* Hide the scrollbar on the Open-tabs column only; the Reading-list (.deferred-column)
-   keeps its scrollbar so Unread / read items still show a scroll affordance. */
+/* Hide the scrollbar on both columns (active-section and deferred-column);
+   overflow remains scrollable, just no visible track. */
 .active-section {
   scrollbar-width: none;       /* Firefox */
   -ms-overflow-style: none;    /* legacy Edge / IE */
@@ -511,19 +513,9 @@ h2, .mission-name, .empty-title {
   border-color: var(--amber);
 }
 
-/* Terminal · theme the saved (deferred) column scrollbar: WebKit/Blink selectors
-   first, standard scrollbar-width/color as the fallback track. Square thumb in
-   --line so it reads as part of the terminal chrome, not a separate control. */
-[data-style="terminal"] .deferred-column {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-[data-style="terminal"] .deferred-column::-webkit-scrollbar { width: 10px; }
-[data-style="terminal"] .deferred-column::-webkit-scrollbar-track { background: transparent; }
-[data-style="terminal"] .deferred-column::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 0;
-}
+/* Terminal · the saved (deferred) column scrollbar is hidden along with the
+   classic style; the previous per-style theming block was removed because the
+   track/thumb are no longer rendered. */
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }
 
