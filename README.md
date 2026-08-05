@@ -6,9 +6,9 @@
 
 **Keep tabs on your tabs.**
 
-Tabulor is a Chrome extension that replaces your new tab page with a local dashboard that groups, renames, merges, and saves your open tabs — with a terminal-style view for those who like their dashboards sharp.
+Tabulor is a Chrome extension that turns your new tab page into a local dashboard for grouping, renaming, merging, and saving open tabs — with an optional terminal-style view.
 
-Light & dark themes. No server. No account. No external server calls — only Chrome's built-in `readingList` API surfaces Chrome's Reading List. Just a Chrome extension.
+Light and dark themes. No server, no account, no external calls — the only outside touch is Chrome's built-in `readingList` API. Just a Chrome extension.
 
 ---
 
@@ -28,16 +28,15 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### Core
 
-- **Group by domain** — open tabs cluster by site; rename groups inline and they persist across sessions
-- **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
-- **Save tabs for later** — sends the current tab to Chrome's Reading List; the right column shows Unread and Done sub-lists
+- **Group by domain** — cluster by site, rename inline, persist across sessions
+- **Click to jump or close** — jump to any tab across windows, or close whole groups
+- **Save tabs for later** — Chrome's Reading List (120+) with offline mirror; Unread and Done sub-lists
 
 ### Highlights
 
-- **Reading List on chrome.readingList** — the right column is a view onto Chrome's Reading List (Chrome 120+), with a local mirror for offline resilience and reactivity from signed-in Chrome devices
-- **Auto-merge same-named groups** — groups that share a label (custom or default) collapse into one card; hover the title to see every source domain
-- **Two selectable visual styles** (Classic rounded / Terminal sharp + monospace) with system-aware light/dark palettes
-- **Self-contained** — self-hosted fonts and 100% local storage; no server, no account, no external API calls
+- **Auto-merge same-named groups** — same label → one card; hover to see source domains
+- **Two selectable visual styles** — Classic rounded / Terminal sharp + monospace
+- **100% local** — local storage, no server or account
 
 ---
 
@@ -45,16 +44,10 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### v0.2.5
 
-- **Toolbar icon no longer follows system theme.** The toolbar icon stays light regardless of system dark mode (the new-tab page still follows `prefers-color-scheme`). The service worker and offscreen document that made the swap possible are removed.
+- **Toolbar icon no longer follows system theme.** The new-tab page itself still follows `prefers-color-scheme`.
+- **Icon refresh.** Redesigned to white outline on Terminal Blue Sea `--card` (`#1e44a8`); card geometry refined to 96×64 (3:2), `>` stroke-width 6, `_` height 4. The icon now appears centered at the top of the README.
 - **CJK fallback moves to system fonts.** The 1.1 MB Noto Sans SC font is removed; the terminal font stack now falls back to system `PingFang SC` / `Microsoft YaHei`.
 - **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%). Self-hosted fonts went from three files / ~1.23 MB to two / ~123 KB.
-
-### v0.2.4
-
-- **Reading list on chrome.readingList** — the right-column section is now a view onto Chrome's Reading List (Chrome 120+); legacy saved entries migrate automatically on first load
-- **Unread + Done sections** — the right column renders two peer sub-sections under a centered "Reading list" umbrella; each is independently collapsible with its own count badge
-- **Per-item favicon** — each entry shows a site icon at the left slot
-- **Paired action button** — the checkbox became a paired "mark as read" / "undo" button
 
 ## Roadmap
 
@@ -111,4 +104,8 @@ Tabulor is based on [tab-out](https://github.com/zarazhangrui/tab-out) by Zara Z
 
 MIT — see [`LICENSE`](./LICENSE).
 
-Maintained by [CaiShawn](https://github.com/CaiShawn)
+---
+
+**Author:** [CaiShawn](https://github.com/CaiShawn)
+
+**Terminal CSS:** courtesy of [terminal-css](https://github.com/panr/terminal-css/) by panr (The Unlicense)
