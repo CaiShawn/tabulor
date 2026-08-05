@@ -37,7 +37,7 @@ The agent will walk you through it. Takes about 1 minute.
 - **Auto-merge same-named groups** — same label → one card; hover to see source domains
 - **Two selectable visual styles** — Classic rounded / Terminal sharp + monospace
 - **English and Simplified Chinese** — two-track dictionary (`_locales/` + `LOCALES`); an `EN / 中` switcher sits at the bottom-left of the dashboard
-- **Backup and restore** — export the dashboard to a versioned JSON file; import merges without duplicating tabs or Reading-list entries
+- **Backup and restore** — export the dashboard to a versioned JSON file; import merges with existing data
 - **100% local** — local storage, no server or account
 
 ---
