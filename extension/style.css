@@ -127,14 +127,15 @@ h2, .mission-name, .empty-title {
 .theme-segment:hover { color: var(--ink); background: var(--line); }
 .theme-segment[aria-pressed="true"] { color: var(--paper); background: var(--amber); }
 .theme-segment[aria-pressed="true"]:hover { color: var(--paper); background: var(--amber); }
-.section-line { width: 100%; height: 1px; background: var(--line); }
-.section-count { flex: none; color: var(--muted); font-size: 11px; }
-.section-count-text { display: inline-block; transform: translateY(-2px); }  /* nudge text up so its center sits on the section-line */
+.section-line { flex: 1 1 auto; min-width: 12px; height: 1px; background: var(--line); }
+.section-count { display: flex; align-items: center; flex: none; color: var(--muted); font-size: 11px; }
+.section-count-text { display: inline-block; transform: translateY(-2px); flex: none; }  /* nudge text up so its center sits on the section-line */
 .section-dot {
   display: inline-block;            /* required for transform to apply on an inline span */
   margin: 0 9px 0 8px;              /* right +1 widens dot→button gap (8+6=14 → 9+6=15); left keeps the dot→number spacing */
   font-size: 12px;                  /* one notch above .section-count's 11px; reads as a more deliberate mid-line separator */
   transform: translateY(-1px);      /* half the rejected -2px; nudge toward the lifted .section-count-text x-height */
+  flex: none;                       /* flex item so the margin-between-flex-items rule still applies in .section-count */
 }
 
 /* Keep chrome bits in Inter even in Terminal — width consistency across styles (font swap
@@ -298,7 +299,7 @@ h2, .mission-name, .empty-title {
 .action-btn:hover { color: var(--ink); border-color: var(--muted); }
 .section-count .action-btn { padding: 3px 8px 3px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design) */
 
-.backup-controls { position: relative; flex: none; }
+.backup-controls { position: relative; flex: none; margin-left: 6px; }
 .backup-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--muted); background: var(--card); }
 .backup-menu {
   position: absolute;
