@@ -112,7 +112,7 @@ h2, .mission-name, .empty-title {
 /* Top-level Reading list header: centered and visibly larger than the
    Unread / Done sub-sections below. No line / count / chevron — those
    affordances only make sense on the collapsible sub-sections. */
-.reading-list-header { justify-content: center; margin-bottom: 22px; }
+.reading-list-header { justify-content: center; margin-bottom: 12px; }  /* tightened from 22px; sits tighter above Unread sub-section. */
 .reading-list-header h2 { font-size: 22px; }
 
 .theme-segments { display: inline-flex; gap: 0; flex: none; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
@@ -401,7 +401,7 @@ h2, .mission-name, .empty-title {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  padding: 10px 0;
+  padding: 8px 0;  /* 8/8 — settled between the 6/0 (too tight) and 10/0 (too loose) iterations. */
   border-bottom: 1px solid var(--line);
 }
 
@@ -417,7 +417,15 @@ h2, .mission-name, .empty-title {
   flex: none;
 }
 .deferred-info { min-width: 0; flex: 1; }
-.deferred-title { display: flex; align-items: center; font-size: 12px; line-height: 1.4; text-decoration: none; }
+.deferred-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  text-decoration: none;
+}  /* clamp to 2 lines with ellipsis; flex/align-items removed (no children inside). */
 .deferred-title:hover { color: var(--amber); }
 .deferred-meta { display: flex; gap: 8px; margin-top: 3px; color: var(--muted); font-size: 9px; }
 .deferred-dismiss { width: 23px; height: 23px; background: transparent; }
@@ -426,7 +434,7 @@ h2, .mission-name, .empty-title {
 .deferred-read,
 .deferred-unread { margin-top: 15px; }
 .read-toggle.section-header,
-.unread-toggle.section-header { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.unread-toggle.section-header { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; margin-bottom: 0; }  /* overrides inherited .section-header 16px; the gap to the first item now comes from .deferred-item's own padding-top. */
 .read-toggle.section-header .read-chevron,
 .unread-toggle.section-header .unread-chevron { flex: none; display: grid; place-items: center; width: 18px; height: 18px; color: var(--muted); transition: transform .15s; }
 .read-toggle.section-header .read-chevron svg,
@@ -436,7 +444,7 @@ h2, .mission-name, .empty-title {
 .read-title,
 .unread-title { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
 .read-body,
-.unread-body { padding-top: 10px; }
+.unread-body { padding-top: 0; }  /* top spacing now lives entirely on the toggle's margin-bottom (8px). */
 
 .missions-empty-state { width: 100%; padding: 70px 20px; text-align: center; }
 .empty-checkmark { width: 42px; height: 42px; margin: 0 auto 13px; padding-top: 6px; border: 1px solid rgba(90, 122, 98, .25); border-radius: 50%; color: var(--sage); font-size: 22px; }
