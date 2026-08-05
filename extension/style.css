@@ -107,12 +107,51 @@ h2, .mission-name, .empty-title {
   margin-bottom: 16px;
 }
 
-.section-header h2 { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+/* Two-row variant for the active section's header:
+   Line 1 (controls): theme-segments + layout-toggle + section-line + backup-controls.
+   Line 2 (title):    "Open tabs" h2 + section-line + "N groups · Close all N tabs".
+   The `.section-header-rows` modifier flips the parent to a column flex with a
+   tight row gap; each `.section-header-row` is itself a row flex matching the
+   original `.section-header` item spacing (gap 12px), so the layout inside a
+   row looks identical to the previous single-row header. */
+.section-header-rows {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.section-header h2 { flex: none; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* Line 1 of the active section header: theme-segments sits at the start;
+   margin-left:auto pushes layout-toggle + backup-controls to the right edge. */
+.section-header-row > .layout-toggle { margin-left: auto; }
+
+/* Backup button's outer box on line 1 fills the row's cross-axis so its height
+   matches the row (= .theme-segments box = 24px content + 2px border).
+   .backup-controls becomes a small flex shim so the button vertically centers
+   inside the stretched wrapper instead of pinning to the top. */
+.section-header-row > .backup-controls {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+/* Line 2 of the active section header: "Open tabs" h2 sits at the start;
+   margin-left:auto pushes "N groups · Close all N tabs" to the right edge.
+   Scoped to .section-header-row so the unread/done sub-section counters
+   (which use .section-line to push themselves right) stay untouched. */
+.section-header-row > .section-count { margin-left: auto; }
 
 /* Top-level Reading list header: centered and visibly larger than the
    Unread / Done sub-sections below. No line / count / chevron — those
    affordances only make sense on the collapsible sub-sections. */
-.reading-list-header { justify-content: center; margin-bottom: 22px; }
+.reading-list-header { justify-content: center; margin-bottom: 12px; }  /* tightened from 22px; sits tighter above Unread sub-section. */
 .reading-list-header h2 { font-size: 22px; }
 
 .theme-segments { display: inline-flex; gap: 0; flex: none; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
@@ -127,14 +166,19 @@ h2, .mission-name, .empty-title {
 .theme-segment:hover { color: var(--ink); background: var(--line); }
 .theme-segment[aria-pressed="true"] { color: var(--paper); background: var(--amber); }
 .theme-segment[aria-pressed="true"]:hover { color: var(--paper); background: var(--amber); }
-.section-line { width: 100%; height: 1px; background: var(--line); }
-.section-count { flex: none; color: var(--muted); font-size: 11px; }
-.section-count-text { display: inline-block; transform: translateY(-2px); }  /* nudge text up so its center sits on the section-line */
+.section-line {
+  flex: 1 1 auto;
+  min-width: 12px;
+  align-self: center;
+  border-bottom: 1px solid var(--line);
+}  /* border-bottom (instead of height+background) renders the hairline more consistently across sub-pixel positions — fixes Unread's line looking thicker than Done's below 800px. */
+.section-count { display: flex; align-items: center; flex: none; color: var(--muted); font-size: 12px; }
+.section-count-text { display: inline-block; flex: none; }  /* align center sits on the section-line now that font-size matches */
 .section-dot {
   display: inline-block;            /* required for transform to apply on an inline span */
   margin: 0 9px 0 8px;              /* right +1 widens dot→button gap (8+6=14 → 9+6=15); left keeps the dot→number spacing */
-  font-size: 12px;                  /* one notch above .section-count's 11px; reads as a more deliberate mid-line separator */
-  transform: translateY(-1px);      /* half the rejected -2px; nudge toward the lifted .section-count-text x-height */
+  font-size: 13px;                  /* one notch above .section-count's 12px; reads as a more deliberate mid-line separator */
+  flex: none;                       /* flex item so the margin-between-flex-items rule still applies in .section-count */
 }
 
 /* Keep chrome bits in Inter even in Terminal — width consistency across styles (font swap
@@ -148,7 +192,7 @@ h2, .mission-name, .empty-title {
 
 .missions {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));  /* fixed 2 cols (was auto-fill minmax 290px 1fr) — stops the grid collapsing to 1 col when the active-section narrows. */
   gap: 16px;
   align-items: start;
 }
@@ -177,7 +221,8 @@ h2, .mission-name, .empty-title {
 
 .mission-card.has-duplicates::before { background: var(--amber); }
 .mission-content { width: 100%; padding: 18px; }
-.mission-top { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 13px; }
+.mission-top { display: flex; align-items: center; gap: 7px; margin-bottom: 13px; }  /* dropped flex-wrap: wrap — close-tabs/badge are inline with mission-name now; when title is long, .mission-title (min-width: 0) shrinks and .mission-name ellipsis-truncates instead of wrapping. */
+.mission-top .close-tabs { flex: none; }  /* keeps close-tabs at natural width; default flex-shrink: 1 was letting the button shrink so its label wrapped internally. */
 .mission-title { display: flex; min-width: 0; max-width: 100%; margin-right: auto; align-items: center; gap: 4px; }
 .mission-name { min-width: 0; overflow: hidden; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -296,7 +341,87 @@ h2, .mission-name, .empty-title {
 }
 
 .action-btn:hover { color: var(--ink); border-color: var(--muted); }
-.section-count .action-btn { padding: 3px 8px 3px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design) */
+.section-count .close-tabs,
+.mission-top .close-tabs { padding: 4px 8px 4px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design). Scoped to .close-tabs (not .action-btn) so the single-label Backup button next to it keeps symmetric padding. */
+
+.backup-controls { position: relative; flex: none; }
+.backup-toggle { padding: 4px 10px; }  /* vertical 4px matches .close-tabs (was 3px when close-tabs was 3px); horizontal 10px stays symmetric (close-tabs uses 8/6). */
+.backup-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--muted); background: var(--card); }
+.backup-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 126px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--elevated);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+.backup-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: transparent;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.backup-menu-item:hover, .backup-menu-item:focus-visible { background: var(--line); outline: 0; }
+
+.toast {
+  position: fixed;
+  z-index: 20;
+  right: 24px;
+  bottom: 24px;
+  max-width: min(360px, calc(100vw - 48px));
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--elevated);
+  box-shadow: 0 8px 24px var(--shadow);
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity .15s, transform .15s;
+}
+.toast[data-error="true"] { border-color: var(--amber); }
+.toast.visible { opacity: 1; transform: translateY(0); }
+
+.language-switcher {
+  position: fixed;
+  z-index: 15;
+  left: 24px;
+  bottom: 24px;
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--elevated);
+}
+.language-segment {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.language-segment:first-child { border-left: 0; }
+.language-segment:hover { color: var(--ink); background: var(--line); }
+.language-segment[aria-pressed="true"] { color: var(--paper); background: var(--amber); }
 
 .deferred-column {
   position: sticky;
@@ -304,12 +429,14 @@ h2, .mission-name, .empty-title {
   flex: 1 1 0;
   min-width: 0;
   max-height: calc(100vh - 80px);
-  padding-right: 10px;  /* keep content clear of the scrollbar gutter */
   overflow-y: auto;
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* legacy Edge / IE */
 }
+.deferred-column::-webkit-scrollbar { display: none; }  /* Chromium / WebKit — scroll programmatically still works, no visible scrollbar. */
 
-/* Hide the scrollbar on the Open-tabs column only; the Reading-list (.deferred-column)
-   keeps its scrollbar so Unread / read items still show a scroll affordance. */
+/* Hide the scrollbar on both columns (active-section and deferred-column);
+   overflow remains scrollable, just no visible track. */
 .active-section {
   scrollbar-width: none;       /* Firefox */
   -ms-overflow-style: none;    /* legacy Edge / IE */
@@ -322,7 +449,7 @@ h2, .mission-name, .empty-title {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  padding: 10px 0;
+  padding: 8px 0;  /* 8/8 — settled between the 6/0 (too tight) and 10/0 (too loose) iterations. */
   border-bottom: 1px solid var(--line);
 }
 
@@ -338,7 +465,15 @@ h2, .mission-name, .empty-title {
   flex: none;
 }
 .deferred-info { min-width: 0; flex: 1; }
-.deferred-title { display: flex; align-items: center; font-size: 12px; line-height: 1.4; text-decoration: none; }
+.deferred-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  text-decoration: none;
+}  /* clamp to 2 lines with ellipsis; flex/align-items removed (no children inside). */
 .deferred-title:hover { color: var(--amber); }
 .deferred-meta { display: flex; gap: 8px; margin-top: 3px; color: var(--muted); font-size: 9px; }
 .deferred-dismiss { width: 23px; height: 23px; background: transparent; }
@@ -347,7 +482,7 @@ h2, .mission-name, .empty-title {
 .deferred-read,
 .deferred-unread { margin-top: 15px; }
 .read-toggle.section-header,
-.unread-toggle.section-header { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.unread-toggle.section-header { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; margin-bottom: 0; }  /* overrides inherited .section-header 16px; the gap to the first item now comes from .deferred-item's own padding-top. */
 .read-toggle.section-header .read-chevron,
 .unread-toggle.section-header .unread-chevron { flex: none; display: grid; place-items: center; width: 18px; height: 18px; color: var(--muted); transition: transform .15s; }
 .read-toggle.section-header .read-chevron svg,
@@ -357,7 +492,7 @@ h2, .mission-name, .empty-title {
 .read-title,
 .unread-title { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
 .read-body,
-.unread-body { padding-top: 10px; }
+.unread-body { padding-top: 0; }  /* top spacing now lives entirely on the toggle's margin-bottom (8px). */
 
 .missions-empty-state { width: 100%; padding: 70px 20px; text-align: center; }
 .empty-checkmark { width: 42px; height: 42px; margin: 0 auto 13px; padding-top: 6px; border: 1px solid rgba(90, 122, 98, .25); border-radius: 50%; color: var(--sage); font-size: 22px; }
@@ -399,6 +534,12 @@ h2, .mission-name, .empty-title {
 }
 
 /* Terminal scope: force sharp corners regardless of where radius tokens live */
+[data-style="terminal"] .language-switcher,
+[data-style="terminal"] .language-segment,
+[data-style="terminal"] .theme-segment,
+[data-style="terminal"] .backup-menu,
+[data-style="terminal"] .backup-menu-item,
+[data-style="terminal"] .toast,
 [data-style="terminal"] .mission-card,
 [data-style="terminal"] .page-chip,
 [data-style="terminal"] .action-btn,
@@ -418,19 +559,9 @@ h2, .mission-name, .empty-title {
   border-color: var(--amber);
 }
 
-/* Terminal · theme the saved (deferred) column scrollbar: WebKit/Blink selectors
-   first, standard scrollbar-width/color as the fallback track. Square thumb in
-   --line so it reads as part of the terminal chrome, not a separate control. */
-[data-style="terminal"] .deferred-column {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-[data-style="terminal"] .deferred-column::-webkit-scrollbar { width: 10px; }
-[data-style="terminal"] .deferred-column::-webkit-scrollbar-track { background: transparent; }
-[data-style="terminal"] .deferred-column::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 0;
-}
+/* Terminal · the saved (deferred) column scrollbar is hidden along with the
+   classic style; the previous per-style theming block was removed because the
+   track/thumb are no longer rendered. */
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } }
 

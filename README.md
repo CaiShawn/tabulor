@@ -1,10 +1,14 @@
 # Tabulor
 
+<p align="center">
+  <img src="extension/icons/icon.svg" alt="Tabulor" width="128">
+</p>
+
 **Keep tabs on your tabs.**
 
-Tabulor is a Chrome extension that replaces your new tab page with a local dashboard that groups, renames, merges, and saves your open tabs — with a terminal-style view for those who like their dashboards sharp.
+Tabulor is a Chrome extension that turns your new tab page into a local dashboard for grouping, renaming, merging, and saving open tabs — with an optional terminal-style view.
 
-Light & dark themes. No server. No account. No external server calls — only Chrome's built-in `readingList` API surfaces Chrome's Reading List. Just a Chrome extension.
+Light and dark themes. No server, no account, no external calls — the only outside touch is Chrome's built-in `readingList` API. Just a Chrome extension.
 
 ---
 
@@ -24,27 +28,41 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### Core
 
-- **Group by domain** — open tabs cluster by site; rename groups inline and they persist across sessions
-- **Click to jump or close** — jump straight to any tab across windows, or close whole groups with one click
-- **Save tabs for later** — sends the current tab to Chrome's Reading List; the right column shows Unread and Done sub-lists
+- **Group by domain** — cluster by site, rename inline, persist across sessions
+- **Click to jump or close** — jump to any tab across windows, or close whole groups
+- **Save tabs for later** — Chrome's Reading List (120+) with offline mirror; Unread and Done sub-lists
 
 ### Highlights
 
-- **Reading List on chrome.readingList** — the right column is a view onto Chrome's Reading List (Chrome 120+), with a local mirror for offline resilience and reactivity from signed-in Chrome devices
-- **Auto-merge same-named groups** — groups that share a label (custom or default) collapse into one card; hover the title to see every source domain
-- **Two selectable visual styles** (Classic rounded / Terminal sharp + monospace) with system-aware light/dark palettes; toolbar icons match `prefers-color-scheme`
-- **Self-contained** — self-hosted fonts and 100% local storage; no server, no account, no external API calls
+- **Auto-merge same-named groups** — same label → one card; hover to see source domains
+- **Two selectable visual styles** — Classic rounded / Terminal sharp + monospace
+- **English and Simplified Chinese** — two-track dictionary (`_locales/` + `LOCALES`); an `EN / 中` switcher sits at the bottom-left of the dashboard
+- **Backup and restore** — export the dashboard to a versioned JSON file; import merges with existing data
+- **100% local** — local storage, no server or account
 
 ---
 
 ## What's new
 
-### v0.2.4
+### v0.2.5
 
-- **Reading list on chrome.readingList** — the right-column section is now a view onto Chrome's Reading List (Chrome 120+); legacy saved entries migrate automatically on first load
-- **Unread + Done sections** — the right column renders two peer sub-sections under a centered "Reading list" umbrella; each is independently collapsible with its own count badge
-- **Per-item favicon** — each entry shows a site icon at the left slot
-- **Paired action button** — the checkbox became a paired "mark as read" / "undo" button
+**New features**
+
+- **English and Simplified Chinese.** Bottom-left `EN / 中` switcher. The choice is persisted afterwards; Reading-list timestamps, plurals, and the rest of the UI re-localize on switch.
+- **Backup and restore.** `Backup` menu next to `Close all` exports a versioned JSON snapshot of the dashboard and re-imports it as a merge with existing data.
+
+**UI changes**
+
+- **Active section header split into two rows.** Line 1: controls (theme switcher, layout toggle, Backup); line 2: `Open tabs` heading (24px) + count / close-all.
+- **Group card "Close all" inline with the title.** Per-group close button moves into the title bar; long titles truncate; grid is a fixed two columns.
+- **Icon refresh.** White outline on Terminal Blue Sea. The icon now appears centered at the top of the README.
+
+**Package slimming**
+
+- **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%).
+  - Toolbar icon no longer follows the system color scheme.
+  - Noto Sans SC fallback dropped; terminal stack uses system CJK fonts.
+  - The new-tab page itself still follows the system's light / dark mode.
 
 ## Roadmap
 
@@ -87,6 +105,7 @@ Everything runs inside the Chrome extension — no server, no third-party API ca
 |------|-----|
 | Extension | Chrome Manifest V3 |
 | Storage | chrome.storage.local + chrome.readingList (Chrome 120+) |
+| i18n | `_locales/en` + `_locales/zh_CN` (manifest) backed by a `LOCALES` map in `app.js` (in-page); `chrome.i18n.getUILanguage()` drives the first-load default |
 | Theming | CSS variables + `prefers-color-scheme`, per-style palette tokens |
 
 ---

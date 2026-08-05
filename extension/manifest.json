@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Tabulor",
-  "version": "0.2.4",
-  "description": "Keep tabs on your tabs — a local new tab dashboard with a terminal-style view that groups, renames, and merges open tabs.",
+  "version": "0.2.5",
+  "description": "Keep tabs on your tabs — a local new tab dashboard with English and Simplified Chinese UI, a terminal-style view, and JSON backup/restore. Groups, renames, and merges open tabs.",
   "permissions": ["tabs", "activeTab", "storage", "favicon", "readingList"],
   "minimum_chrome_version": "120",
   "chrome_url_overrides": { "newtab": "index.html" },
+  "default_locale": "en",
   "action": {
     "default_title": "Tabulor",
     "default_icon": {
