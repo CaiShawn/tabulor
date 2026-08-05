@@ -127,7 +127,12 @@ h2, .mission-name, .empty-title {
 .theme-segment:hover { color: var(--ink); background: var(--line); }
 .theme-segment[aria-pressed="true"] { color: var(--paper); background: var(--amber); }
 .theme-segment[aria-pressed="true"]:hover { color: var(--paper); background: var(--amber); }
-.section-line { flex: 1 1 auto; min-width: 12px; height: 1px; background: var(--line); }
+.section-line {
+  flex: 1 1 auto;
+  min-width: 12px;
+  align-self: center;
+  border-bottom: 1px solid var(--line);
+}  /* border-bottom (instead of height+background) renders the hairline more consistently across sub-pixel positions — fixes Unread's line looking thicker than Done's below 800px. */
 .section-count { display: flex; align-items: center; flex: none; color: var(--muted); font-size: 12px; }
 .section-count-text { display: inline-block; flex: none; }  /* align center sits on the section-line now that font-size matches */
 .section-dot {
