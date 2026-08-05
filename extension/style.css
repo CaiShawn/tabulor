@@ -128,13 +128,12 @@ h2, .mission-name, .empty-title {
 .theme-segment[aria-pressed="true"] { color: var(--paper); background: var(--amber); }
 .theme-segment[aria-pressed="true"]:hover { color: var(--paper); background: var(--amber); }
 .section-line { flex: 1 1 auto; min-width: 12px; height: 1px; background: var(--line); }
-.section-count { display: flex; align-items: center; flex: none; color: var(--muted); font-size: 11px; }
-.section-count-text { display: inline-block; transform: translateY(-2px); flex: none; }  /* nudge text up so its center sits on the section-line */
+.section-count { display: flex; align-items: center; flex: none; color: var(--muted); font-size: 12px; }
+.section-count-text { display: inline-block; flex: none; }  /* align center sits on the section-line now that font-size matches */
 .section-dot {
   display: inline-block;            /* required for transform to apply on an inline span */
   margin: 0 9px 0 8px;              /* right +1 widens dot→button gap (8+6=14 → 9+6=15); left keeps the dot→number spacing */
-  font-size: 12px;                  /* one notch above .section-count's 11px; reads as a more deliberate mid-line separator */
-  transform: translateY(-1px);      /* half the rejected -2px; nudge toward the lifted .section-count-text x-height */
+  font-size: 13px;                  /* one notch above .section-count's 12px; reads as a more deliberate mid-line separator */
   flex: none;                       /* flex item so the margin-between-flex-items rule still applies in .section-count */
 }
 
