@@ -53,6 +53,8 @@ The agent will walk you through it. Takes about 1 minute.
 
 **UI changes**
 
+- **Active section header split into two rows.** Line 1: controls (theme switcher, layout toggle, Backup); line 2: `Open tabs` heading (24px) + count / close-all.
+- **Group card "Close all" inline with the title.** Per-group close button moves into the title bar; long titles truncate; grid is a fixed two columns.
 - **Icon refresh.** White outline on Terminal Blue Sea. The icon now appears centered at the top of the README.
 
 **Package slimming**
