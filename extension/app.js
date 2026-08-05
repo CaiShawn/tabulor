@@ -712,7 +712,10 @@ function render() {
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><h2>${t('openTabs')}</h2><div class="section-line"></div><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button>${backupControlsTemplate()}</div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header section-header-rows">
+        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button>${backupControlsTemplate()}</div>
+        <div class="section-header-row"><h2>${t('openTabs')}</h2><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button></div></div>
+      </div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
     ${languageSwitcherTemplate()}
@@ -730,7 +733,10 @@ function focusEditorIfNeeded() {
 }
 
 function emptyTemplate() {
-  return `<section class="active-section"><div class="section-header"><h2>${t('openTabs')}</h2>${backupControlsTemplate()}<div class="section-line"></div></div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">${t('emptyTitle')}</div><div class="empty-subtitle">${t('emptySubtitle')}</div></div></section>`;
+  return `<section class="active-section"><div class="section-header section-header-rows">
+    <div class="section-header-row">${backupControlsTemplate()}</div>
+    <div class="section-header-row"><h2>${t('openTabs')}</h2></div>
+  </div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">${t('emptyTitle')}</div><div class="empty-subtitle">${t('emptySubtitle')}</div></div></section>`;
 }
 
 function currentTheme() {

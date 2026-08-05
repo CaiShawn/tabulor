@@ -107,7 +107,46 @@ h2, .mission-name, .empty-title {
   margin-bottom: 16px;
 }
 
-.section-header h2 { flex: none; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+/* Two-row variant for the active section's header:
+   Line 1 (controls): theme-segments + layout-toggle + section-line + backup-controls.
+   Line 2 (title):    "Open tabs" h2 + section-line + "N groups · Close all N tabs".
+   The `.section-header-rows` modifier flips the parent to a column flex with a
+   tight row gap; each `.section-header-row` is itself a row flex matching the
+   original `.section-header` item spacing (gap 12px), so the layout inside a
+   row looks identical to the previous single-row header. */
+.section-header-rows {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.section-header h2 { flex: none; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* Line 1 of the active section header: theme-segments sits at the start;
+   margin-left:auto pushes layout-toggle + backup-controls to the right edge. */
+.section-header-row > .layout-toggle { margin-left: auto; }
+
+/* Backup button's outer box on line 1 fills the row's cross-axis so its height
+   matches the row (= .theme-segments box = 24px content + 2px border).
+   .backup-controls becomes a small flex shim so the button vertically centers
+   inside the stretched wrapper instead of pinning to the top. */
+.section-header-row > .backup-controls {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+/* Line 2 of the active section header: "Open tabs" h2 sits at the start;
+   margin-left:auto pushes "N groups · Close all N tabs" to the right edge.
+   Scoped to .section-header-row so the unread/done sub-section counters
+   (which use .section-line to push themselves right) stay untouched. */
+.section-header-row > .section-count { margin-left: auto; }
 
 /* Top-level Reading list header: centered and visibly larger than the
    Unread / Done sub-sections below. No line / count / chevron — those
@@ -305,7 +344,7 @@ h2, .mission-name, .empty-title {
 .section-count .close-tabs,
 .mission-top .close-tabs { padding: 4px 8px 4px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design). Scoped to .close-tabs (not .action-btn) so the single-label Backup button next to it keeps symmetric padding. */
 
-.backup-controls { position: relative; flex: none; margin-left: 6px; }
+.backup-controls { position: relative; flex: none; }
 .backup-toggle { padding: 4px 10px; }  /* vertical 4px matches .close-tabs (was 3px when close-tabs was 3px); horizontal 10px stays symmetric (close-tabs uses 8/6). */
 .backup-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--muted); background: var(--card); }
 .backup-menu {
