@@ -57,7 +57,7 @@ The agent will walk you through it. Takes about 1 minute.
 
 **Package slimming**
 
-- **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%). Self-hosted fonts went from three files / ~1.23 MB to two / ~123 KB. The toolbar icon's `prefers-color-scheme` auto-swap (and the offscreen document that drove it) is removed; the new-tab page itself still follows the system color scheme. The 1.1 MB Noto Sans SC CJK fallback is dropped; the terminal font stack now falls back to system `PingFang SC` / `Microsoft YaHei`.
+- **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%). The toolbar icon's `prefers-color-scheme` auto-swap (and the offscreen document that drove it) is removed, and the 1.1 MB Noto Sans SC fallback is dropped in favor of system `PingFang SC` / `Microsoft YaHei`; the new-tab page itself still follows the system color scheme.
 
 ## Roadmap
 
