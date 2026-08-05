@@ -83,7 +83,7 @@ const LOCALES = {
     layoutTitleSingle: 'Switch to single-column layout',
     layoutTitleMulti: 'Switch to multi-column layout',
     closeAllTabs: (n) => `Close all ${n} ${n === 1 ? 'tab' : 'tabs'}`,
-    closeGroup: (n) => `Close all ${n} ${n === 1 ? 'tab' : 'tabs'}`,
+    closeGroup: 'Close all',
     closeDuplicates: (n) => `Close ${n} ${n === 1 ? 'duplicate' : 'duplicates'}`,
     pluralGroup: (n) => `${n} ${n === 1 ? 'group' : 'groups'}`,
     pluralTab: (n) => `${n} ${n === 1 ? 'tab' : 'tabs'}`,
@@ -139,7 +139,7 @@ const LOCALES = {
     layoutTitleSingle: '切换为单列布局',
     layoutTitleMulti: '切换为多列布局',
     closeAllTabs: (n) => `关闭全部 ${n} 个标签`,
-    closeGroup: (n) => `关闭全部 ${n} 个标签`,
+    closeGroup: '关闭全部',
     closeDuplicates: (n) => `关闭 ${n} 个重复标签`,
     pluralGroup: (n) => `${n} 个分组`,
     pluralTab: (n) => `${n} 个标签`,
@@ -447,15 +447,12 @@ function groupTemplate(group, index) {
       <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="${esc(t('renameGroupTitle'))}" aria-label="${esc(t('renameAria', group.label))}">${ICONS.edit}</button>`;
   return `<article class="mission-card domain-card${duplicates ? ' has-duplicates' : ''}" data-group="${index}">
     <div class="mission-content">
-      <div class="mission-top"><div class="mission-title">${titleHtml}</div>${duplicateBadge}</div>
+      <div class="mission-top"><div class="mission-title">${titleHtml}</div>${duplicateBadge}<button class="action-btn close-tabs" data-action="close-group" data-group="${index}">${ICONS.close}${t('closeGroup')}</button></div>
       <div class="mission-pages">${visible.map(tabTemplate).join('')}
         ${hidden.length ? `<div class="page-chips-overflow" hidden>${hidden.map(tabTemplate).join('')}</div>
           <div class="page-chip page-chip-overflow clickable" data-action="expand">+${hidden.length} more</div>` : ''}
       </div>
-      <div class="actions">
-        <button class="action-btn close-tabs" data-action="close-group" data-group="${index}">${ICONS.close}${t('closeGroup', group.tabs.length)}</button>
-        ${duplicates ? `<button class="action-btn" data-action="dedupe" data-group="${index}">${t('closeDuplicates', duplicates)}</button>` : ''}
-      </div>
+      ${duplicates ? `<div class="actions"><button class="action-btn" data-action="dedupe" data-group="${index}">${t('closeDuplicates', duplicates)}</button></div>` : ''}
     </div>
   </article>`;
 }
