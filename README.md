@@ -36,6 +36,8 @@ The agent will walk you through it. Takes about 1 minute.
 
 - **Auto-merge same-named groups** — same label → one card; hover to see source domains
 - **Two selectable visual styles** — Classic rounded / Terminal sharp + monospace
+- **English and Simplified Chinese** — two-track dictionary (`_locales/` + `LOCALES`); an `EN / 中` switcher sits at the bottom-left of the dashboard
+- **Backup and restore** — export the whole dashboard (tabs, group names, Reading list, settings) to a versioned JSON file; import merges without duplicating open tabs or Reading list entries
 - **100% local** — local storage, no server or account
 
 ---
@@ -44,6 +46,8 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### v0.2.5
 
+- **English and Simplified Chinese.** The UI ships in two languages with a bottom-left `EN / 中` switcher. First load follows `chrome.i18n.getUILanguage()`; the choice is persisted afterwards. Reading-list timestamps, plurals, and the rest of the UI re-localize on switch.
+- **Backup and restore.** The `Backup` menu next to `Close all` exports a versioned JSON snapshot of the dashboard (open tabs, custom group names, Reading list, layout, theme, style) and re-imports it as a merge — existing tabs and Reading-list URLs are preserved.
 - **Toolbar icon no longer follows system theme.** The new-tab page itself still follows `prefers-color-scheme`.
 - **Icon refresh.** Redesigned to white outline on Terminal Blue Sea `--card` (`#1e44a8`); card geometry refined to 96×64 (3:2), `>` stroke-width 6, `_` height 4. The icon now appears centered at the top of the README.
 - **CJK fallback moves to system fonts.** The 1.1 MB Noto Sans SC font is removed; the terminal font stack now falls back to system `PingFang SC` / `Microsoft YaHei`.
@@ -90,6 +94,7 @@ Everything runs inside the Chrome extension — no server, no third-party API ca
 |------|-----|
 | Extension | Chrome Manifest V3 |
 | Storage | chrome.storage.local + chrome.readingList (Chrome 120+) |
+| i18n | `_locales/en` + `_locales/zh_CN` (manifest) backed by a `LOCALES` map in `app.js` (in-page); `chrome.i18n.getUILanguage()` drives the first-load default |
 | Theming | CSS variables + `prefers-color-scheme`, per-style palette tokens |
 
 ---
