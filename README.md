@@ -46,16 +46,16 @@ The agent will walk you through it. Takes about 1 minute.
 
 ### v0.2.5
 
-**新特性**
+**New features**
 
 - **English and Simplified Chinese.** The UI ships in two languages with a bottom-left `EN / 中` switcher. First load follows `chrome.i18n.getUILanguage()`; the choice is persisted afterwards. Reading-list timestamps, plurals, and the rest of the UI re-localize on switch.
 - **Backup and restore.** The `Backup` menu next to `Close all` exports a versioned JSON snapshot of the dashboard (open tabs, custom group names, Reading list, layout, theme, style) and re-imports it as a merge — existing tabs and Reading-list URLs are preserved.
 
-**UI 修改**
+**UI changes**
 
 - **Icon refresh.** Redesigned to white outline on Terminal Blue Sea `--card` (`#1e44a8`); card geometry refined to 96×64 (3:2), `>` stroke-width 6, `_` height 4. The icon now appears centered at the top of the README.
 
-**软件包瘦身**
+**Package slimming**
 
 - **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%). Self-hosted fonts went from three files / ~1.23 MB to two / ~123 KB. The toolbar icon's `prefers-color-scheme` auto-swap (and the offscreen document that drove it) is removed; the new-tab page itself still follows the system color scheme. The 1.1 MB Noto Sans SC CJK fallback is dropped; the terminal font stack now falls back to system `PingFang SC` / `Microsoft YaHei`.
 
