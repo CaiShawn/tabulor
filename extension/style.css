@@ -299,6 +299,7 @@ h2, .mission-name, .empty-title {
 .section-count .close-tabs { padding: 3px 8px 3px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design). Scoped to .close-tabs (not .action-btn) so the single-label Backup button next to it keeps symmetric padding. */
 
 .backup-controls { position: relative; flex: none; margin-left: 6px; }
+.backup-toggle { padding: 3px 10px; }  /* vertical 3px matches .close-tabs; horizontal 10px stays symmetric (close-tabs uses 8/6). */
 .backup-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--muted); background: var(--card); }
 .backup-menu {
   position: absolute;
