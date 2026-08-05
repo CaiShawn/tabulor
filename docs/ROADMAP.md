@@ -25,9 +25,6 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 
 > Pending work, highest priority first.
 
-### Export / import of the whole group layout
-JSON in/out so a user can back up or share their tab dashboard.
-
 ### i18n (中英双语切换)
 Add zh/en language switching for the UI. No i18n (`_locales`, `chrome.i18n`) plumbing exists yet — all UI strings are hardcoded English.
 

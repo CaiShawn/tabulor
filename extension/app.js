@@ -3,6 +3,7 @@
 
 const MAX_NAME_LENGTH = 50;
 const LOCAL_FILES_KEY = 'local-files';
+const BACKUP_SCHEMA_VERSION = 1;
 // `readingListMirror` is a local shadow copy of `chrome.readingList`, populated
 // lazily on every successful query(). It is the render source so the dashboard
 // still has data to show if a later query() rejects, and it survives new-tab
@@ -46,6 +47,7 @@ const uiState = {
   editingDraft: '',
   unreadExpanded: true,
   readExpanded: false,
+  backupOpen: false,
   firstRender: true,
 };
 
@@ -348,6 +350,174 @@ function safeUrl(url) {
   catch { return '#'; }
 }
 
+function buildBackup() {
+  return {
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    tabs: dataState.tabs.filter(isWebTab).map(tab => ({ url: tab.url, title: tab.title || tab.url })),
+    customGroupNames: { ...dataState.customGroupNames },
+    readingList: dataState.readingList.map(item => ({
+      url: item.url,
+      title: item.title || item.url,
+      hasBeenRead: !!item.hasBeenRead,
+      creationTime: item.creationTime,
+      lastUpdateTime: item.lastUpdateTime,
+    })),
+    settings: {
+      theme: dataState.theme,
+      styleId: currentStyleId(),
+      layout: LAYOUTS.includes(dataState.layout) ? dataState.layout : 'multi',
+      unreadExpanded: uiState.unreadExpanded,
+      readExpanded: uiState.readExpanded,
+    },
+  };
+}
+
+function normaliseBackup(value) {
+  if (!value || typeof value !== 'object' || value.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+    throw new Error('Unsupported Tabulor backup format');
+  }
+  const tabs = [];
+  const tabUrls = new Set();
+  for (const item of Array.isArray(value.tabs) ? value.tabs : []) {
+    if (!item || typeof item.url !== 'string' || !isWebTab(item) || safeUrl(item.url) === '#') continue;
+    if (tabUrls.has(item.url)) continue;
+    tabUrls.add(item.url);
+    tabs.push({ url: item.url, title: typeof item.title === 'string' ? item.title.slice(0, 1000) : item.url });
+  }
+
+  const readingList = [];
+  const readingUrls = new Set();
+  for (const item of Array.isArray(value.readingList) ? value.readingList : []) {
+    if (!item || typeof item.url !== 'string' || !/^https?:/.test(item.url) || safeUrl(item.url) === '#') continue;
+    if (readingUrls.has(item.url)) continue;
+    readingUrls.add(item.url);
+    readingList.push({
+      url: item.url,
+      title: typeof item.title === 'string' ? item.title.slice(0, 1000) : item.url,
+      hasBeenRead: !!item.hasBeenRead,
+    });
+  }
+
+  const names = {};
+  if (value.customGroupNames && typeof value.customGroupNames === 'object' && !Array.isArray(value.customGroupNames)) {
+    for (const [key, name] of Object.entries(value.customGroupNames)) {
+      const clean = tidyName(name);
+      if (key && clean) names[key] = clean;
+    }
+  }
+
+  const settings = value.settings && typeof value.settings === 'object' ? value.settings : {};
+  return {
+    tabs,
+    readingList,
+    customGroupNames: names,
+    settings: {
+      theme: settings.theme === 'dark' || settings.theme === 'light' ? settings.theme : null,
+      styleId: STYLES.some(style => style.id === settings.styleId) ? settings.styleId : DEFAULT_STYLE_ID,
+      layout: LAYOUTS.includes(settings.layout) ? settings.layout : 'multi',
+      unreadExpanded: settings.unreadExpanded !== false,
+      readExpanded: settings.readExpanded === true,
+    },
+  };
+}
+
+function showToast(message, isError = false) {
+  const toast = $('#toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.dataset.error = isError ? 'true' : 'false';
+  toast.classList.add('visible');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('visible'), 2800);
+}
+
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(buildBackup(), null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `tabulor-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  uiState.backupOpen = false;
+  render();
+  showToast('Backup exported');
+}
+
+async function importBackup(file) {
+  let backup;
+  try {
+    backup = normaliseBackup(JSON.parse(await file.text()));
+  } catch (error) {
+    console.error('[tabulor] backup import failed', error);
+    showToast(`Import failed: ${error.message || error}`, true);
+    return;
+  }
+
+  const existingTabUrls = new Set(dataState.tabs.filter(isWebTab).map(tab => tab.url));
+  const tabsToOpen = backup.tabs.filter(tab => !existingTabUrls.has(tab.url));
+  const created = [];
+  for (const tab of tabsToOpen) {
+    try {
+      await chrome.tabs.create({ url: tab.url, active: false });
+      created.push(tab.url);
+    } catch (error) {
+      if (!/duplicate/i.test(error.message || '')) {
+        console.error('[tabulor] backup import tabs.create failed', error);
+      }
+    }
+  }
+  let readingListFailures = 0;
+  for (const item of backup.readingList) {
+    try {
+      await chrome.readingList.addEntry(item);
+    } catch (error) {
+      console.error('[tabulor] backup import readingList.addEntry failed', error);
+      readingListFailures += 1;
+    }
+  }
+
+  dataState.customGroupNames = { ...dataState.customGroupNames, ...backup.customGroupNames };
+  dataState.theme = backup.settings.theme;
+  dataState.styleId = backup.settings.styleId;
+  dataState.layout = backup.settings.layout;
+  uiState.unreadExpanded = backup.settings.unreadExpanded;
+  uiState.readExpanded = backup.settings.readExpanded;
+  uiState.backupOpen = false;
+  try {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.customGroupNames]: dataState.customGroupNames,
+      [STORAGE_KEYS.theme]: dataState.theme,
+      [STORAGE_KEYS.styleId]: dataState.styleId,
+      [STORAGE_KEYS.layout]: dataState.layout,
+      [STORAGE_KEYS.unreadExpanded]: uiState.unreadExpanded,
+      [STORAGE_KEYS.readExpanded]: uiState.readExpanded,
+    });
+  } catch (error) {
+    console.error('[tabulor] backup storage write failed', error);
+  }
+  try {
+    applyTheme();
+    await refresh();
+  } catch (error) {
+    console.error('[tabulor] backup post-import refresh failed', error);
+  }
+  const summary = readingListFailures
+    ? `Backup imported (${created.length} tabs, ${readingListFailures} reading skipped)`
+    : `Backup imported (${created.length} tabs)`;
+  showToast(summary, readingListFailures > 0);
+}
+
+function backupControlsTemplate() {
+  return `<div class="backup-controls">
+    <button class="action-btn backup-toggle" data-action="toggle-backup" aria-expanded="${uiState.backupOpen}" title="Back up dashboard">Backup</button>
+    ${uiState.backupOpen ? `<div class="backup-menu" role="menu">
+      <button class="backup-menu-item" data-action="export-backup" role="menuitem">Export JSON</button>
+      <button class="backup-menu-item" data-action="import-backup" role="menuitem">Import JSON</button>
+    </div>` : ''}
+  </div>`;
+}
+
 function savedTemplate() {
   const unread = dataState.readingList.filter(x => !x.hasBeenRead);
   const read = dataState.readingList.filter(x => x.hasBeenRead);
@@ -387,7 +557,7 @@ function render() {
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout" aria-label="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout">${ICONS.layout}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count"><span class="section-count-text">${plural(groups.length, 'domain')}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout" aria-label="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout">${ICONS.layout}</button>${backupControlsTemplate()}<h2>Open tabs</h2><div class="section-line"></div><div class="section-count"><span class="section-count-text">${plural(groups.length, 'domain')}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button></div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
   </div>`;
@@ -404,7 +574,7 @@ function focusEditorIfNeeded() {
 }
 
 function emptyTemplate() {
-  return `<section class="active-section"><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">Inbox zero, but for tabs.</div><div class="empty-subtitle">You're free.</div></div></section>`;
+  return `<section class="active-section"><div class="section-header"><h2>Open tabs</h2>${backupControlsTemplate()}<div class="section-line"></div></div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">Inbox zero, but for tabs.</div><div class="empty-subtitle">You're free.</div></div></section>`;
 }
 
 function currentTheme() {
@@ -697,6 +867,16 @@ const uiActions = {
     chrome.storage.local.set({ [STORAGE_KEYS.layout]: dataState.layout });
     render();
   },
+  'toggle-backup': () => {
+    uiState.backupOpen = !uiState.backupOpen;
+    render();
+  },
+  'export-backup': () => exportBackup(),
+  'import-backup': () => {
+    uiState.backupOpen = false;
+    render();
+    $('#backupFileInput')?.click();
+  },
   expand: el => {
     const overflow = el.previousElementSibling;
     if (overflow) overflow.hidden = false;
@@ -717,6 +897,11 @@ document.addEventListener('error', event => {
 }, true);
 
 document.addEventListener('click', async event => {
+  const backupControls = $('.backup-controls');
+  if (uiState.backupOpen && backupControls && !backupControls.contains(event.target)) {
+    uiState.backupOpen = false;
+    render();
+  }
   const el = event.target.closest('[data-action]');
   if (!el || !actions[el.dataset.action]) return;
   el.disabled = true;
@@ -735,6 +920,13 @@ document.addEventListener('input', event => {
   // plan; no input handlers attach to the Reading list section today.
 });
 
+document.addEventListener('change', event => {
+  const input = event.target;
+  if (!input.matches('#backupFileInput') || !input.files?.[0]) return;
+  importBackup(input.files[0]).catch(error => console.error('[tabulor]', error));
+  input.value = '';
+});
+
 function renderReadList() {
   const read = dataState.readingList.filter(x => x.hasBeenRead);
   const list = $('.read-list');
@@ -742,6 +934,12 @@ function renderReadList() {
 }
 
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && uiState.backupOpen) {
+    event.preventDefault();
+    uiState.backupOpen = false;
+    render();
+    return;
+  }
   if (!event.target.matches('.group-name-input') || event.isComposing) return;
   if (event.key === 'Enter') {
     event.preventDefault();

@@ -298,6 +298,55 @@ h2, .mission-name, .empty-title {
 .action-btn:hover { color: var(--ink); border-color: var(--muted); }
 .section-count .action-btn { padding: 3px 8px 3px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design) */
 
+.backup-controls { position: relative; flex: none; }
+.backup-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--muted); background: var(--card); }
+.backup-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 126px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--elevated);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+.backup-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: transparent;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.backup-menu-item:hover, .backup-menu-item:focus-visible { background: var(--line); outline: 0; }
+
+.toast {
+  position: fixed;
+  z-index: 20;
+  right: 24px;
+  bottom: 24px;
+  max-width: min(360px, calc(100vw - 48px));
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--elevated);
+  box-shadow: 0 8px 24px var(--shadow);
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity .15s, transform .15s;
+}
+.toast[data-error="true"] { border-color: var(--amber); }
+.toast.visible { opacity: 1; transform: translateY(0); }
+
 .deferred-column {
   position: sticky;
   top: 28px;
@@ -399,6 +448,10 @@ h2, .mission-name, .empty-title {
 }
 
 /* Terminal scope: force sharp corners regardless of where radius tokens live */
+[data-style="terminal"] .theme-segment,
+[data-style="terminal"] .backup-menu,
+[data-style="terminal"] .backup-menu-item,
+[data-style="terminal"] .toast,
 [data-style="terminal"] .mission-card,
 [data-style="terminal"] .page-chip,
 [data-style="terminal"] .action-btn,

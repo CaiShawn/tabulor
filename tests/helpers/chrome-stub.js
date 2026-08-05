@@ -37,17 +37,26 @@ function makeStorage(initial = {}) {
   };
 }
 
-function makeTabsApi() {
+function makeTabsApi(initialTabs = []) {
+  let tabs = initialTabs.map(tab => ({ ...tab }));
+  let nextId = tabs.reduce((max, tab) => Math.max(max, Number(tab.id) || 0), 0) + 1;
   const tabListeners = new Set();
   const noopFn = async () => {};
   return {
-    query: async () => [],
+    query: async () => tabs.map(tab => ({ ...tab })),
+    create: async ({ url, active = true }) => {
+      const tab = { id: nextId++, windowId: 1, url, title: url, active };
+      tabs.push(tab);
+      for (const listener of tabListeners) listener(tab);
+      return { ...tab };
+    },
     remove: noopFn,
     update: noopFn,
     onCreated: { addListener: l => tabListeners.add(l) },
     onRemoved: { addListener: l => tabListeners.add(l) },
     onUpdated: { addListener: l => tabListeners.add(l) },
     onMoved: { addListener: l => tabListeners.add(l) },
+    _peek: () => tabs.map(tab => ({ ...tab })),
   };
 }
 
@@ -114,9 +123,9 @@ function makeReadingListApi({ initialEntries = [] } = {}) {
   };
 }
 
-function installChromeStub({ initialStorage = {}, initialReadingList = [] } = {}) {
+function installChromeStub({ initialStorage = {}, initialReadingList = [], initialTabs = [] } = {}) {
   const storage = makeStorage(initialStorage);
-  const tabs = makeTabsApi();
+  const tabs = makeTabsApi(initialTabs);
   const windows = makeWindowsApi();
   const runtime = makeRuntimeApi();
   const readingList = makeReadingListApi({ initialEntries: initialReadingList });
