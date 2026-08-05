@@ -1,5 +1,9 @@
 # Tabulor
 
+<p align="center">
+  <img src="extension/icons/icon.svg" alt="Tabulor" width="128">
+</p>
+
 **Keep tabs on your tabs.**
 
 Tabulor is a Chrome extension that replaces your new tab page with a local dashboard that groups, renames, merges, and saves your open tabs — with a terminal-style view for those who like their dashboards sharp.
