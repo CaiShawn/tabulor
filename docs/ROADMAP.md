@@ -25,9 +25,6 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 
 > Pending work, highest priority first.
 
-### i18n (中英双语切换)
-Add zh/en language switching for the UI. No i18n (`_locales`, `chrome.i18n`) plumbing exists yet — all UI strings are hardcoded English.
-
 ### Custom dashboard background image
 User-supplied image as the dashboard background. Open: source (file upload vs URL), storage (data URL size vs external URL; `chrome.storage.local` quota), interaction with theming (overlay/blur/opacity for content legibility).
 

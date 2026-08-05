@@ -45,13 +45,13 @@ function buildDomContext(appText = '') {
   };
 }
 
-async function loadAppInVm(initialStorage = {}, initialReadingList = [], initialTabs = []) {
+async function loadAppInVm(initialStorage = {}, initialReadingList = [], initialTabs = [], options = {}) {
   const dom = buildDomContext();
-  const chrome = installChromeStub({ initialStorage, initialReadingList, initialTabs });
+  const chrome = installChromeStub({ initialStorage, initialReadingList, initialTabs, uiLanguage: options.uiLanguage || 'en' });
   const ctx = { ...dom, chrome };
   ctx.globalThis = ctx;
   const source = fs.readFileSync(path.resolve(__dirname, '..', 'extension/app.js'), 'utf8')
-    + '\n;globalThis.__test = { dataState, uiState, mergeByLabel, buildGroups, withPages, pickRepGroup, groupAt, lastGroups, applyTheme, currentStyleId, currentTheme, parseIds, buildBackup, normaliseBackup, importBackup };';
+    + '\n;globalThis.__test = { dataState, uiState, mergeByLabel, buildGroups, withPages, pickRepGroup, groupAt, lastGroups, applyTheme, currentStyleId, currentTheme, parseIds, buildBackup, normaliseBackup, importBackup, t, plural, resolveLanguage };';
   vm.runInNewContext(source, ctx, { filename: 'extension/app.js' });
   // The migration path awaits N addEntry + remove + re-read inside loadState,
   // plus a fresh refreshReadingList, so a handful of microtask hops is not
@@ -230,6 +230,45 @@ async function loadAppInVm(initialStorage = {}, initialReadingList = [], initial
     assert.ok(tabs.some(tab => tab.url === 'https://fresh.example/'), 'non-duplicate tab still opens');
     assert.strictEqual(tabs.filter(tab => tab.url === 'https://other-window.example/').length, 1, 'no extra copy of the duplicated URL');
     console.log('smoke: backup import tolerates Duplicate URL errors from chrome.tabs.create');
+  }
+
+  // Case 9b: i18n — t() / plural() / timeAgo() honour the current language;
+  // resolveLanguage() falls back to chrome.i18n.getUILanguage() on first
+  // load and respects a stored override thereafter.
+  {
+    // (a) Default English
+    const { ctx } = await loadAppInVm();
+    assert.strictEqual(ctx.__test.t('openTabs'), 'Open tabs');
+    assert.strictEqual(ctx.__test.t('readingList'), 'Reading list');
+    assert.strictEqual(ctx.__test.plural('Group', 1), '1 group');
+    assert.strictEqual(ctx.__test.plural('Group', 6), '6 groups');
+    assert.strictEqual(ctx.__test.t('timeMinAgo', 5), '5 min ago');
+    assert.strictEqual(ctx.__test.t('timeDaysAgo', 3), '3 days ago');
+    assert.strictEqual(ctx.__test.t('timeJustNow'), 'just now');
+    assert.strictEqual(ctx.__test.t('timeYesterday'), 'yesterday');
+    // (b) Switch to Chinese at runtime
+    ctx.__test.uiState.language = 'zh_CN';
+    assert.strictEqual(ctx.__test.t('openTabs'), '打开的标签');
+    assert.strictEqual(ctx.__test.t('readingList'), '阅读列表');
+    assert.strictEqual(ctx.__test.plural('Group', 1), '1 个分组');
+    assert.strictEqual(ctx.__test.plural('Group', 6), '6 个分组');
+    assert.strictEqual(ctx.__test.t('timeMinAgo', 5), '5 分钟前');
+    assert.strictEqual(ctx.__test.t('timeDaysAgo', 3), '3 天前');
+    assert.strictEqual(ctx.__test.t('timeJustNow'), '刚刚');
+    assert.strictEqual(ctx.__test.t('timeYesterday'), '昨天');
+    console.log('smoke: t() and plural() switch between en and zh_CN');
+  }
+  {
+    // (c) First load without stored language follows Chrome UI language.
+    const { ctx } = await loadAppInVm({}, [], [], { uiLanguage: 'zh-CN' });
+    assert.strictEqual(ctx.__test.uiState.language, 'zh_CN', 'chrome.i18n.getUILanguage zh* resolves to zh_CN');
+    console.log('smoke: resolveLanguage follows chrome.i18n.getUILanguage on first load');
+  }
+  {
+    // (d) Stored override beats Chrome UI language.
+    const { ctx } = await loadAppInVm({ uiLanguage: 'zh_CN' }, [], [], { uiLanguage: 'en' });
+    assert.strictEqual(ctx.__test.uiState.language, 'zh_CN', 'stored uiLanguage overrides chrome.i18n.getUILanguage');
+    console.log('smoke: stored uiLanguage overrides chrome.i18n.getUILanguage');
   }
 
   // Case 9: the one-time migration pushes legacy `deferred` entries into

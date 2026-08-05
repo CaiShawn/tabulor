@@ -347,6 +347,35 @@ h2, .mission-name, .empty-title {
 .toast[data-error="true"] { border-color: var(--amber); }
 .toast.visible { opacity: 1; transform: translateY(0); }
 
+.language-switcher {
+  position: fixed;
+  z-index: 15;
+  left: 24px;
+  bottom: 24px;
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--elevated);
+}
+.language-segment {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.language-segment:first-child { border-left: 0; }
+.language-segment:hover { color: var(--ink); background: var(--line); }
+.language-segment[aria-pressed="true"] { color: var(--paper); background: var(--amber); }
+
 .deferred-column {
   position: sticky;
   top: 28px;
@@ -448,6 +477,8 @@ h2, .mission-name, .empty-title {
 }
 
 /* Terminal scope: force sharp corners regardless of where radius tokens live */
+[data-style="terminal"] .language-switcher,
+[data-style="terminal"] .language-segment,
 [data-style="terminal"] .theme-segment,
 [data-style="terminal"] .backup-menu,
 [data-style="terminal"] .backup-menu-item,

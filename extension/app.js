@@ -11,7 +11,7 @@ const BACKUP_SCHEMA_VERSION = 1;
 // cache, not a peer. We do not listen for our own mirror writes in
 // `storage.onChanged` — reactivity for external Reading-list changes comes
 // from `chrome.readingList.onEntryAdded/Updated/Removed`.
-const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout' };
+const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout', uiLanguage: 'uiLanguage' };
 // Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
 // (Fira Code, saturated colors, sharp corners). Style is independent of the
 // light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
@@ -48,8 +48,150 @@ const uiState = {
   unreadExpanded: true,
   readExpanded: false,
   backupOpen: false,
+  // Resolved by resolveLanguage() at load: 'en' or 'zh_CN'. Persisted on
+  // user toggle via chrome.storage.local; the very first load falls back
+  // to chrome.i18n.getUILanguage() when nothing is stored.
+  language: 'en',
   firstRender: true,
 };
+
+const SUPPORTED_LANGUAGES = ['en', 'zh_CN'];
+
+// Two-track dictionary: chrome.i18n.getMessage is the runtime source for
+// manifest-visible strings (extension name, description), and the same
+// dict keys back the in-page strings via t() / plural(). The built-in
+// LOCALES map is the same shape as the messages.json entries, so the
+// fallback path is a plain key lookup. Storing the dict in code (not
+// inlined strings) keeps a single source of truth: editing a key here
+// edits the en/zh variant together.
+const LOCALES = {
+  en: {
+    openTabs: 'Open tabs',
+    readingList: 'Reading list',
+    unread: 'Unread',
+    done: 'Done',
+    emptyTitle: 'Inbox zero, but for tabs.',
+    emptySubtitle: "You're free.",
+    readingListEmpty: 'Nothing saved. Living in the moment.',
+    errorLoadingTabs: 'Could not read your tabs. Reload this page to try again.',
+    styleGroupAria: 'Style',
+    styleClassic: 'Classic',
+    styleTerminal: 'Terminal',
+    styleTitle: (style) => `${style} style`,
+    layoutAriaSingle: 'Switch to single-column layout',
+    layoutAriaMulti: 'Switch to multi-column layout',
+    layoutTitleSingle: 'Switch to single-column layout',
+    layoutTitleMulti: 'Switch to multi-column layout',
+    closeAllTabs: (n) => `Close all ${n} ${n === 1 ? 'tab' : 'tabs'}`,
+    closeGroup: (n) => `Close all ${n} ${n === 1 ? 'tab' : 'tabs'}`,
+    closeDuplicates: (n) => `Close ${n} ${n === 1 ? 'duplicate' : 'duplicates'}`,
+    pluralGroup: (n) => `${n} ${n === 1 ? 'group' : 'groups'}`,
+    pluralTab: (n) => `${n} ${n === 1 ? 'tab' : 'tabs'}`,
+    pluralItem: (n) => `${n} ${n === 1 ? 'item' : 'items'}`,
+    pluralDuplicate: (n) => `${n} ${n === 1 ? 'duplicate' : 'duplicates'}`,
+    tabsOpenBadge: (n) => `${n} ${n === 1 ? 'tab' : 'tabs'} open`,
+    saveForLaterTitle: 'Save for later',
+    closeTabTitle: 'Close this tab',
+    markAsReadTitle: 'Mark as read',
+    dismissTitle: 'Dismiss',
+    moveToUnreadTitle: 'Move back to Unread',
+    renameGroupTitle: 'Rename group',
+    renameAria: (name) => `Rename ${name}`,
+    customNameAria: (name) => `Custom name for ${name}`,
+    describeDefault: (name) => `Default: ${name}`,
+    describeCombined: (n) => `Combined from ${n} groups`,
+    describeDomain: (domain) => `Domain: ${domain}`,
+    describeSource: (name, domain) => `${name} (${domain})`,
+    backup: 'Backup',
+    backUpDashboardTitle: 'Back up dashboard',
+    exportJson: 'Export JSON',
+    importJson: 'Import JSON',
+    backupExported: 'Backup exported',
+    backupImported: (n) => `Backup imported (${n} ${n === 1 ? 'tab' : 'tabs'})`,
+    backupImportedSkipped: (n, m) => `Backup imported (${n} ${n === 1 ? 'tab' : 'tabs'}, ${m} reading skipped)`,
+    importFailed: (msg) => `Import failed: ${msg}`,
+    languageEnglish: 'EN',
+    languageChinese: '中',
+    languageSwitcherAria: 'Language',
+    languageEnglishAria: 'Switch to English',
+    languageChineseAria: '切换到简体中文',
+    timeJustNow: 'just now',
+    timeMinAgo: (n) => `${n} min ago`,
+    timeHrAgo: (n) => `${n} hr ago`,
+    timeYesterday: 'yesterday',
+    timeDaysAgo: (n) => `${n} ${n === 1 ? 'day' : 'days'} ago`,
+  },
+  zh_CN: {
+    openTabs: '打开的标签',
+    readingList: '阅读列表',
+    unread: '未读',
+    done: '已完成',
+    emptyTitle: '标签页收件箱已清零。',
+    emptySubtitle: '可以喘口气了。',
+    readingListEmpty: '还没有保存。先活在当下。',
+    errorLoadingTabs: '无法读取标签页。请刷新此页重试。',
+    styleGroupAria: '风格',
+    styleClassic: '经典',
+    styleTerminal: '终端',
+    styleTitle: (style) => `${style} 风格`,
+    layoutAriaSingle: '切换为单列布局',
+    layoutAriaMulti: '切换为多列布局',
+    layoutTitleSingle: '切换为单列布局',
+    layoutTitleMulti: '切换为多列布局',
+    closeAllTabs: (n) => `关闭全部 ${n} 个标签`,
+    closeGroup: (n) => `关闭全部 ${n} 个标签`,
+    closeDuplicates: (n) => `关闭 ${n} 个重复标签`,
+    pluralGroup: (n) => `${n} 个分组`,
+    pluralTab: (n) => `${n} 个标签`,
+    pluralItem: (n) => `${n} 项`,
+    pluralDuplicate: (n) => `${n} 个重复`,
+    tabsOpenBadge: (n) => `${n} 个标签打开`,
+    saveForLaterTitle: '稍后再读',
+    closeTabTitle: '关闭此标签',
+    markAsReadTitle: '标记为已读',
+    dismissTitle: '移除',
+    moveToUnreadTitle: '移回未读',
+    renameGroupTitle: '重命名分组',
+    renameAria: (name) => `重命名 ${name}`,
+    customNameAria: (name) => `${name} 的自定义名`,
+    describeDefault: (name) => `默认名：${name}`,
+    describeCombined: (n) => `合并自 ${n} 个分组`,
+    describeDomain: (domain) => `域名：${domain}`,
+    describeSource: (name, domain) => `${name}（${domain}）`,
+    backup: '备份',
+    backUpDashboardTitle: '备份仪表盘',
+    exportJson: '导出 JSON',
+    importJson: '导入 JSON',
+    backupExported: '备份已导出',
+    backupImported: (n) => `备份已导入（${n} 个标签）`,
+    backupImportedSkipped: (n, m) => `备份已导入（${n} 个标签，${m} 条阅读列表已跳过）`,
+    importFailed: (msg) => `导入失败：${msg}`,
+    languageEnglish: 'EN',
+    languageChinese: '中',
+    languageSwitcherAria: '语言',
+    languageEnglishAria: '切换为英文',
+    languageChineseAria: '切换为简体中文',
+    timeJustNow: '刚刚',
+    timeMinAgo: (n) => `${n} 分钟前`,
+    timeHrAgo: (n) => `${n} 小时前`,
+    timeYesterday: '昨天',
+    timeDaysAgo: (n) => `${n} 天前`,
+  },
+};
+
+function resolveLanguage(stored) {
+  if (SUPPORTED_LANGUAGES.includes(stored)) return stored;
+  const ui = typeof chrome !== 'undefined' && chrome.i18n?.getUILanguage
+    ? chrome.i18n.getUILanguage() : 'en';
+  return ui.toLowerCase().startsWith('zh') ? 'zh_CN' : 'en';
+}
+
+function t(key, ...args) {
+  const dict = LOCALES[uiState.language] || LOCALES.en;
+  const entry = dict[key];
+  if (entry === undefined) return key;
+  return typeof entry === 'function' ? entry(...args) : entry;
+}
 
 const FRIENDLY = {
   'github.com': 'GitHub', 'gist.github.com': 'GitHub Gist',
@@ -83,7 +225,7 @@ const ICONS = {
 const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[c]);
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const plural = (key, n) => t(`plural${key}`, n);
 const isWebTab = tab => /^(https?|file):/.test(tab.url || '');
 const hostname = url => {
   try { return url.startsWith('file:') ? LOCAL_FILES_KEY : new URL(url).hostname; }
@@ -253,25 +395,25 @@ function mergeByLabel(groups) {
 }
 
 function describeGroup(group) {
-  const lines = [`Default: ${group.defaultLabel}`];
+  const lines = [t('describeDefault', group.defaultLabel)];
   if (group.sources.length > 1) {
-    lines.push(`Combined from ${group.sources.length} groups`);
+    lines.push(t('describeCombined', group.sources.length));
     for (const s of group.sources) {
-      lines.push(s.domain ? `${s.defaultLabel} (${s.domain})` : s.defaultLabel);
+      lines.push(s.domain ? t('describeSource', s.defaultLabel, s.domain) : s.defaultLabel);
     }
   } else if (group.domain) {
-    lines.push(`Domain: ${group.domain}`);
+    lines.push(t('describeDomain', group.domain));
   }
   return lines.join('\n');
 }
 
 function timeAgo(value) {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value)) / 60000));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  if (minutes < 1440) return `${Math.floor(minutes / 60)} hr${minutes < 120 ? '' : 's'} ago`;
+  if (minutes < 1) return t('timeJustNow');
+  if (minutes < 60) return t('timeMinAgo', minutes);
+  if (minutes < 1440) return t('timeHrAgo', Math.floor(minutes / 60));
   const days = Math.floor(minutes / 1440);
-  return days === 1 ? 'yesterday' : `${days} days ago`;
+  return days === 1 ? t('timeYesterday') : t('timeDaysAgo', days);
 }
 
 function tabTemplate(copies) {
@@ -286,8 +428,8 @@ function tabTemplate(copies) {
     <span class="chip-text">${esc(displayTitle(tab))}</span>
     ${count > 1 ? `<span class="chip-dupe-badge">(${count}x)</span>` : ''}
     <div class="chip-actions">
-      <button class="chip-action chip-save" data-action="save" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="Save for later">☆</button>
-      <button class="chip-action chip-close" data-action="close" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="Close this tab">${ICONS.close}</button>
+      <button class="chip-action chip-save" data-action="save" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="${esc(t('saveForLaterTitle'))}">☆</button>
+      <button class="chip-action chip-close" data-action="close" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="${esc(t('closeTabTitle'))}">${ICONS.close}</button>
     </div>
   </div>`;
 }
@@ -297,23 +439,23 @@ function groupTemplate(group, index) {
   const visible = pages.slice(0, 8);
   const hidden = pages.slice(8);
   const duplicateBadge = duplicates
-    ? `<span class="open-tabs-badge open-tabs-badge-duplicate">${plural(duplicates, 'duplicate')}</span>` : '';
+    ? `<span class="open-tabs-badge open-tabs-badge-duplicate">${plural('Duplicate', duplicates)}</span>` : '';
   const editing = uiState.editingKey === group.key;
   const titleHtml = editing
-    ? `<input class="group-name-input" data-group="${index}" value="${esc(uiState.editingDraft)}" maxlength="${MAX_NAME_LENGTH}" placeholder="${esc(group.defaultLabel)}" title="${esc(describeGroup(group))}" aria-label="Custom name for ${esc(group.defaultLabel)}" autocomplete="off">`
+    ? `<input class="group-name-input" data-group="${index}" value="${esc(uiState.editingDraft)}" maxlength="${MAX_NAME_LENGTH}" placeholder="${esc(group.defaultLabel)}" title="${esc(describeGroup(group))}" aria-label="${esc(t('customNameAria', group.defaultLabel))}" autocomplete="off">`
     : `<span class="mission-name" title="${esc(describeGroup(group))}">${esc(group.label)}</span>
-      <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="Rename group" aria-label="Rename ${esc(group.label)}">${ICONS.edit}</button>`;
+      <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="${esc(t('renameGroupTitle'))}" aria-label="${esc(t('renameAria', group.label))}">${ICONS.edit}</button>`;
   return `<article class="mission-card domain-card${duplicates ? ' has-duplicates' : ''}" data-group="${index}">
     <div class="mission-content">
       <div class="mission-top"><div class="mission-title">${titleHtml}</div>
-        <span class="open-tabs-badge">${ICONS.tabs}${plural(group.tabs.length, 'tab')} open</span>${duplicateBadge}</div>
+        <span class="open-tabs-badge">${ICONS.tabs}${t('tabsOpenBadge', group.tabs.length)}</span>${duplicateBadge}</div>
       <div class="mission-pages">${visible.map(tabTemplate).join('')}
         ${hidden.length ? `<div class="page-chips-overflow" hidden>${hidden.map(tabTemplate).join('')}</div>
           <div class="page-chip page-chip-overflow clickable" data-action="expand">+${hidden.length} more</div>` : ''}
       </div>
       <div class="actions">
-        <button class="action-btn close-tabs" data-action="close-group" data-group="${index}">${ICONS.close}Close all ${plural(group.tabs.length, 'tab')}</button>
-        ${duplicates ? `<button class="action-btn" data-action="dedupe" data-group="${index}">Close ${plural(duplicates, 'duplicate')}</button>` : ''}
+        <button class="action-btn close-tabs" data-action="close-group" data-group="${index}">${ICONS.close}${t('closeGroup', group.tabs.length)}</button>
+        ${duplicates ? `<button class="action-btn" data-action="dedupe" data-group="${index}">${t('closeDuplicates', duplicates)}</button>` : ''}
       </div>
     </div>
   </article>`;
@@ -325,8 +467,8 @@ function savedItemTemplate(item) {
     ${faviconImage({ url: item.url }, 'deferred-favicon')}
     <div class="deferred-info"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="deferred-title">${esc(item.title || item.url)}</a>
       <div class="deferred-meta"><span>${esc(domain)}</span><span>${timeAgo(item.creationTime)}</span></div></div>
-    <button class="deferred-dismiss" data-action="complete" data-saved-url="${esc(item.url)}" title="Mark as read">${ICONS.check}</button>
-    <button class="deferred-dismiss" data-action="dismiss" data-saved-url="${esc(item.url)}" title="Dismiss">${ICONS.close}</button>
+    <button class="deferred-dismiss" data-action="complete" data-saved-url="${esc(item.url)}" title="${esc(t('markAsReadTitle'))}">${ICONS.check}</button>
+    <button class="deferred-dismiss" data-action="dismiss" data-saved-url="${esc(item.url)}" title="${esc(t('dismissTitle'))}">${ICONS.close}</button>
   </div>`;
 }
 
@@ -340,8 +482,8 @@ function readItemTemplate(item) {
     ${faviconImage({ url: item.url }, 'deferred-favicon')}
     <div class="deferred-info"><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener" class="deferred-title">${esc(item.title || item.url)}</a>
       <div class="deferred-meta"><span>${esc(domain)}</span><span>${timeAgo(item.lastUpdateTime || item.creationTime)}</span></div></div>
-    <button class="deferred-dismiss" data-action="restore" data-saved-url="${esc(item.url)}" title="Move back to Unread">${ICONS.undo}</button>
-    <button class="deferred-dismiss" data-action="dismiss" data-saved-url="${esc(item.url)}" title="Dismiss">${ICONS.close}</button>
+    <button class="deferred-dismiss" data-action="restore" data-saved-url="${esc(item.url)}" title="${esc(t('moveToUnreadTitle'))}">${ICONS.undo}</button>
+    <button class="deferred-dismiss" data-action="dismiss" data-saved-url="${esc(item.url)}" title="${esc(t('dismissTitle'))}">${ICONS.close}</button>
   </div>`;
 }
 
@@ -441,7 +583,7 @@ function exportBackup() {
   setTimeout(() => URL.revokeObjectURL(link.href), 0);
   uiState.backupOpen = false;
   render();
-  showToast('Backup exported');
+  showToast(t('backupExported'));
 }
 
 async function importBackup(file) {
@@ -450,7 +592,7 @@ async function importBackup(file) {
     backup = normaliseBackup(JSON.parse(await file.text()));
   } catch (error) {
     console.error('[tabulor] backup import failed', error);
-    showToast(`Import failed: ${error.message || error}`, true);
+    showToast(t('importFailed', error.message || String(error)), true);
     return;
   }
 
@@ -503,19 +645,29 @@ async function importBackup(file) {
     console.error('[tabulor] backup post-import refresh failed', error);
   }
   const summary = readingListFailures
-    ? `Backup imported (${created.length} tabs, ${readingListFailures} reading skipped)`
-    : `Backup imported (${created.length} tabs)`;
+    ? t('backupImportedSkipped', created.length, readingListFailures)
+    : t('backupImported', created.length);
   showToast(summary, readingListFailures > 0);
 }
 
 function backupControlsTemplate() {
   return `<div class="backup-controls">
-    <button class="action-btn backup-toggle" data-action="toggle-backup" aria-expanded="${uiState.backupOpen}" title="Back up dashboard">Backup</button>
+    <button class="action-btn backup-toggle" data-action="toggle-backup" aria-expanded="${uiState.backupOpen}" title="${esc(t('backUpDashboardTitle'))}">${t('backup')}</button>
     ${uiState.backupOpen ? `<div class="backup-menu" role="menu">
-      <button class="backup-menu-item" data-action="export-backup" role="menuitem">Export JSON</button>
-      <button class="backup-menu-item" data-action="import-backup" role="menuitem">Import JSON</button>
+      <button class="backup-menu-item" data-action="export-backup" role="menuitem">${t('exportJson')}</button>
+      <button class="backup-menu-item" data-action="import-backup" role="menuitem">${t('importJson')}</button>
     </div>` : ''}
   </div>`;
+}
+
+function languageSwitcherTemplate() {
+  const segments = SUPPORTED_LANGUAGES.map(code => {
+    const active = code === uiState.language;
+    const labelKey = code === 'en' ? 'languageEnglish' : 'languageChinese';
+    const ariaKey = code === 'en' ? 'languageEnglishAria' : 'languageChineseAria';
+    return `<button class="language-segment" data-action="set-language" data-language="${code}" aria-pressed="${active}" aria-label="${esc(t(ariaKey))}">${t(labelKey)}</button>`;
+  }).join('');
+  return `<div class="language-switcher" role="group" aria-label="${esc(t('languageSwitcherAria'))}">${segments}</div>`;
 }
 
 function savedTemplate() {
@@ -526,18 +678,18 @@ function savedTemplate() {
   // independently collapsible with its own count badge: "Unread" and "Done".
   // Search filtering within the list is deferred to the Search + keyboard-first plan.
   return `<aside class="deferred-column" id="deferredColumn">
-    <div class="section-header reading-list-header"><h2>Reading list</h2></div>
+    <div class="section-header reading-list-header"><h2>${t('readingList')}</h2></div>
     <div class="deferred-unread">
       <button class="unread-toggle section-header" data-action="toggle-unread" aria-expanded="${uiState.unreadExpanded}">
-        <span class="unread-title">Unread</span><span class="section-line"></span><span class="section-count">${plural(unread.length, 'item')}</span><span class="unread-chevron">${ICONS.chevron}</span></button>
+        <span class="unread-title">${t('unread')}</span><span class="section-line"></span><span class="section-count">${plural('Item', unread.length)}</span><span class="unread-chevron">${ICONS.chevron}</span></button>
       <div class="unread-body" ${uiState.unreadExpanded ? '' : 'hidden'}>
         <div class="deferred-list">${unread.map(savedItemTemplate).join('')}</div>
-        ${unread.length ? '' : '<div class="deferred-empty">Nothing saved. Living in the moment.</div>'}
+        ${unread.length ? '' : `<div class="deferred-empty">${t('readingListEmpty')}</div>`}
       </div>
     </div>
     ${read.length ? `<div class="deferred-read">
       <button class="read-toggle section-header" data-action="toggle-read" aria-expanded="${uiState.readExpanded}">
-        <span class="read-title">Done</span><span class="section-line"></span><span class="section-count">${plural(read.length, 'item')}</span><span class="read-chevron">${ICONS.chevron}</span></button>
+        <span class="read-title">${t('done')}</span><span class="section-line"></span><span class="section-count">${plural('Item', read.length)}</span><span class="read-chevron">${ICONS.chevron}</span></button>
       <div class="read-body" ${uiState.readExpanded ? '' : 'hidden'}>
         <div class="read-list">${read.map(readItemTemplate).join('')}</div>
       </div></div>` : ''}
@@ -550,16 +702,18 @@ function render() {
   const realTabs = dataState.tabs.filter(isWebTab);
   const styleSegments = STYLES.map(s => {
     const active = s.id === currentStyleId();
-    return `<button class="theme-segment" data-action="set-style" data-style="${s.id}" aria-pressed="${active}" title="${s.label} style">${s.label}</button>`;
+    const label = s.id === 'classic' ? t('styleClassic') : t('styleTerminal');
+    return `<button class="theme-segment" data-action="set-style" data-style="${s.id}" aria-pressed="${active}" title="${esc(t('styleTitle', label))}">${label}</button>`;
   }).join('');
   const containerClass = uiState.firstRender ? 'container' : 'container no-anim';
   const layout = LAYOUTS.includes(dataState.layout) ? dataState.layout : 'multi';
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns">
-      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="Style">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout" aria-label="Switch to ${layout === 'single' ? 'multi-column' : 'single-column'} layout">${ICONS.layout}</button><h2>Open tabs</h2><div class="section-line"></div><div class="section-count"><span class="section-count-text">${plural(groups.length, 'group')}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}Close all ${plural(realTabs.length, 'tab')}</button>${backupControlsTemplate()}</div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      ${groups.length ? `<section class="active-section"><div class="section-header"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><h2>${t('openTabs')}</h2><div class="section-line"></div><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button>${backupControlsTemplate()}</div></div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
+    ${languageSwitcherTemplate()}
   </div>`;
   uiState.firstRender = false;
   focusEditorIfNeeded();
@@ -574,7 +728,7 @@ function focusEditorIfNeeded() {
 }
 
 function emptyTemplate() {
-  return `<section class="active-section"><div class="section-header"><h2>Open tabs</h2>${backupControlsTemplate()}<div class="section-line"></div></div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">Inbox zero, but for tabs.</div><div class="empty-subtitle">You're free.</div></div></section>`;
+  return `<section class="active-section"><div class="section-header"><h2>${t('openTabs')}</h2>${backupControlsTemplate()}<div class="section-line"></div></div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">${t('emptyTitle')}</div><div class="empty-subtitle">${t('emptySubtitle')}</div></div></section>`;
 }
 
 function currentTheme() {
@@ -642,6 +796,7 @@ async function loadState() {
   uiState.unreadExpanded = stored[STORAGE_KEYS.unreadExpanded] !== false;
   uiState.readExpanded = !!stored[STORAGE_KEYS.readExpanded];
   dataState.layout = LAYOUTS.includes(stored[STORAGE_KEYS.layout]) ? stored[STORAGE_KEYS.layout] : 'multi';
+  uiState.language = resolveLanguage(stored[STORAGE_KEYS.uiLanguage]);
 }
 
 let refreshInFlight;
@@ -862,6 +1017,13 @@ const uiActions = {
     applyTheme();
     render();
   },
+  'set-language': (el) => {
+    const next = el.dataset.language;
+    if (!SUPPORTED_LANGUAGES.includes(next) || next === uiState.language) return;
+    uiState.language = next;
+    chrome.storage.local.set({ [STORAGE_KEYS.uiLanguage]: next });
+    render();
+  },
   'toggle-layout': () => {
     dataState.layout = dataState.layout === 'single' ? 'multi' : 'single';
     chrome.storage.local.set({ [STORAGE_KEYS.layout]: dataState.layout });
@@ -981,5 +1143,5 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
 
 refresh().catch(error => {
   console.error('[tabulor]', error);
-  app.innerHTML = '<div class="container"><h2>Tabulor</h2><p>Could not read your tabs. Reload this page to try again.</p></div>';
+  app.innerHTML = `<div class="container"><h2>Tabulor</h2><p>${t('errorLoadingTabs')}</p></div>`;
 });

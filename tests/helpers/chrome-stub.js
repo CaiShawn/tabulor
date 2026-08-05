@@ -74,6 +74,25 @@ function makeRuntimeApi() {
   };
 }
 
+// Minimal chrome.i18n stub. Returns the message passed to getMessage so the
+// i18n code path in app.js is exercised; tests assert on t() / plural()
+// directly using the built-in LOCALES dict, not chrome.i18n.
+function makeI18nApi({ uiLanguage = 'en' } = {}) {
+  return {
+    getUILanguage: () => uiLanguage,
+    getMessage: (key, ...args) => {
+      // getMessage collapses to a single substituted string; the in-page
+      // t() helper never calls this (LOCALES is authoritative), so a stable
+      // placeholder is fine.
+      let result = key;
+      args.flat().forEach((arg, i) => {
+        result = result.replace(`$${i + 1}$`, String(arg));
+      });
+      return result;
+    },
+  };
+}
+
 // Minimal chrome.readingList stub. Keeps an in-memory array of entries keyed
 // by URL (matching the real API's uniqueness contract), fires onEntry* events
 // when entries are added/updated/removed, and exposes `_peek` so tests can
@@ -123,17 +142,19 @@ function makeReadingListApi({ initialEntries = [] } = {}) {
   };
 }
 
-function installChromeStub({ initialStorage = {}, initialReadingList = [], initialTabs = [] } = {}) {
+function installChromeStub({ initialStorage = {}, initialReadingList = [], initialTabs = [], uiLanguage = 'en' } = {}) {
   const storage = makeStorage(initialStorage);
   const tabs = makeTabsApi(initialTabs);
   const windows = makeWindowsApi();
   const runtime = makeRuntimeApi();
+  const i18n = makeI18nApi({ uiLanguage });
   const readingList = makeReadingListApi({ initialEntries: initialReadingList });
   return {
     runtime,
     storage: { local: storage, onChanged: storage.onChanged },
     tabs,
     windows,
+    i18n,
     readingList,
     // expose the underlying storage / reading-list for assertions
     _storage: storage,

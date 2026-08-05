@@ -6,6 +6,7 @@
   "permissions": ["tabs", "activeTab", "storage", "favicon", "readingList"],
   "minimum_chrome_version": "120",
   "chrome_url_overrides": { "newtab": "index.html" },
+  "default_locale": "en",
   "action": {
     "default_title": "Tabulor",
     "default_icon": {
