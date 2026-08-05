@@ -60,7 +60,7 @@ The agent will walk you through it. Takes about 1 minute.
 - **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%).
   - Toolbar icon no longer follows the system color scheme.
   - Noto Sans SC fallback dropped; terminal stack uses system CJK fonts.
-  - The new-tab page itself still follows `prefers-color-scheme`.
+  - The new-tab page itself still follows the system color scheme.
 
 ## Roadmap
 
