@@ -299,6 +299,7 @@ h2, .mission-name, .empty-title {
 .section-count .action-btn { padding: 3px 8px 3px 6px; }  /* left 6 / right 8: tightens svg to left edge; right pad for label breath (dot's right is 9, +1 by design) */
 
 .backup-controls { position: relative; flex: none; margin-left: 6px; }
+.section-count .backup-toggle { padding: 3px 8px; }  /* symmetric; the section-count .action-btn override is for SVG-prefixed close-tabs and would make single-label text look left-heavy */
 .backup-toggle[aria-expanded="true"] { color: var(--ink); border-color: var(--muted); background: var(--card); }
 .backup-menu {
   position: absolute;
