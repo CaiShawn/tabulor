@@ -11,7 +11,7 @@ const BACKUP_SCHEMA_VERSION = 1;
 // cache, not a peer. We do not listen for our own mirror writes in
 // `storage.onChanged` — reactivity for external Reading-list changes comes
 // from `chrome.readingList.onEntryAdded/Updated/Removed`.
-const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout', uiLanguage: 'uiLanguage' };
+const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', pinnedGroupKeys: 'pinnedGroupKeys', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout', columnOrder: 'columnOrder', backgroundImage: 'backgroundImage', uiLanguage: 'uiLanguage' };
 // Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
 // (Fira Code, saturated colors, sharp corners). Style is independent of the
 // light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
@@ -21,6 +21,7 @@ const STYLES = [
 ];
 const DEFAULT_STYLE_ID = 'classic';
 const LAYOUTS = ['multi', 'single'];
+const COLUMN_ORDERS = ['tabs-list', 'list-tabs'];
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -29,6 +30,10 @@ const app = $('#app');
 const dataState = {
   tabs: [],
   customGroupNames: {},
+  // Group keys whose domain the user pinned to the top row. Persisted across
+  // reloads so a pinned group whose tabs all close comes back when the user
+  // reopens a tab at that domain. Order is the pin order.
+  pinnedGroupKeys: [],
   // Mirrors the entries in chrome.readingList (URL-keyed). Populated from the
   // local `readingListMirror` cache on load and refreshed by
   // `refreshReadingList()` thereafter.
@@ -40,14 +45,26 @@ const dataState = {
   theme: null,
   styleId: DEFAULT_STYLE_ID,
   layout: 'multi',
+  // Horizontal order of the two main dashboard columns. 'tabs-list' =
+  // Open tabs on the left, Reading list on the right (default). 'list-tabs'
+  // mirrors horizontally. Vertical flip is intentionally out of scope; the
+  // narrow-viewport stacking order follows the same `columnOrder` choice.
+  columnOrder: 'tabs-list',
 };
 
 const uiState = {
   editingKey: null,
   editingDraft: '',
+  // group.key of the pinned chip whose inline preview popover is open, or null.
+  // Lives in uiState (not persisted) because it's a transient view state — a
+  // page reload starts with everything closed.
+  pinnedPopoverKey: null,
+  // Whether the settings menu (gear icon) is open. Renamed from backupOpen
+  // when the gear absorbed the backup items; behaviour (click-outside closes)
+  // is unchanged.
+  settingsOpen: false,
   unreadExpanded: true,
   readExpanded: false,
-  backupOpen: false,
   // Resolved by resolveLanguage() at load: 'en' or 'zh_CN'. Persisted on
   // user toggle via chrome.storage.local; the very first load falls back
   // to chrome.i18n.getUILanguage() when nothing is stored.
@@ -91,6 +108,22 @@ const LOCALES = {
     pluralDuplicate: (n) => `${n} ${n === 1 ? 'duplicate' : 'duplicates'}`,
     tabsOpenBadge: (n) => `${n} ${n === 1 ? 'tab' : 'tabs'} open`,
     saveForLaterTitle: 'Save for later',
+    saveAlreadyInReadingList: 'Already in Reading list',
+    saveFailed: "Couldn't save. Try again.",
+    pinGroupTitle: 'Pin to top',
+    unpinGroupTitle: 'Unpin',
+    pinnedRowAria: 'Pinned',
+    pinnedChipAria: (name, n) => `Open ${name} (${n})`,
+    pinnedPopoverAria: (name) => `Tabs in ${name}`,
+    flipColumnsTitle: 'Mirror flip',
+    themeToggleTitle: 'Theme',
+    settingsTitle: 'Settings',
+    backgroundChoose: 'Choose image…',
+    backgroundClear: 'Clear background',
+    backgroundSet: 'Background set',
+    backgroundCleared: 'Background cleared',
+    backgroundTooLarge: 'Image too large (max 5 MB)',
+    backgroundFailed: (msg) => `Background failed: ${msg}`,
     closeTabTitle: 'Close this tab',
     markAsReadTitle: 'Mark as read',
     dismissTitle: 'Dismiss',
@@ -147,6 +180,22 @@ const LOCALES = {
     pluralDuplicate: (n) => `${n} 个重复`,
     tabsOpenBadge: (n) => `${n} 个标签打开`,
     saveForLaterTitle: '稍后再读',
+    saveAlreadyInReadingList: '已在阅读列表中',
+    saveFailed: '保存失败，请重试',
+    pinGroupTitle: '置顶分组',
+    unpinGroupTitle: '取消置顶',
+    pinnedRowAria: '已置顶',
+    pinnedChipAria: (name, n) => `打开 ${name}（${n}）`,
+    pinnedPopoverAria: (name) => `${name} 中的标签`,
+    flipColumnsTitle: '镜像翻转',
+    themeToggleTitle: '主题',
+    settingsTitle: '设置',
+    backgroundChoose: '选择图片…',
+    backgroundClear: '清除背景',
+    backgroundSet: '背景已设置',
+    backgroundCleared: '背景已清除',
+    backgroundTooLarge: '图片过大（最大 5 MB）',
+    backgroundFailed: (msg) => `背景加载失败：${msg}`,
     closeTabTitle: '关闭此标签',
     markAsReadTitle: '标记为已读',
     dismissTitle: '移除',
@@ -219,7 +268,14 @@ const ICONS = {
   chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>`,
   undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>`,
   check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>`,
+  plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>`,
+  pin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a2 2 0 0 1 2-2h1a1 1 0 0 0 0-2H6a1 1 0 0 0 0 2h1a2 2 0 0 1 2 2z"/></svg>`,
+  // Two opposing horizontal arrows stacked vertically — the canonical "swap"
+  // affordance, distinct from the 2x2/3-rows ICONS.layout so the two
+  // adjacent header toggles read as a pair without competing visually.
+  swap: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8H15"/><path d="M15 5l3 3-3 3"/><path d="M21 16H9"/><path d="M9 13l-3 3 3 3"/></svg>`,
   layout: `<span class="layout-icon"><svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="9" height="9"/><rect x="17" y="4" width="9" height="9"/><rect x="4" y="17" width="9" height="9"/><rect x="17" y="17" width="9" height="9"/></svg><span>/</span><svg viewBox="0 0 24 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="22" height="4"/><rect x="4" y="13" width="22" height="4"/><rect x="4" y="22" width="22" height="4"/></svg></span>`,
+  gear: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
 };
 
 const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
@@ -227,6 +283,12 @@ const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
 })[c]);
 const plural = (key, n) => t(`plural${key}`, n);
 const isWebTab = tab => /^(https?|file):/.test(tab.url || '');
+
+// O(n) on a typical session (≤ dozens of pinned groups). If we ever ship URL-
+// level pinning too, swap to a Set built once per render. The lookup lives on
+// the hot path of `render()` and `groupTemplate()`, so we keep it dependency-
+// free rather than maintaining a parallel Set across mutations.
+const isPinned = key => dataState.pinnedGroupKeys.includes(key);
 const hostname = url => {
   try { return url.startsWith('file:') ? LOCAL_FILES_KEY : new URL(url).hostname; }
   catch { return ''; }
@@ -428,7 +490,7 @@ function tabTemplate(copies) {
     <span class="chip-text">${esc(displayTitle(tab))}</span>
     ${count > 1 ? `<span class="chip-dupe-badge">(${count}x)</span>` : ''}
     <div class="chip-actions">
-      <button class="chip-action chip-save" data-action="save" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="${esc(t('saveForLaterTitle'))}">☆</button>
+      <button class="chip-action chip-save" data-action="save" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="${esc(t('saveForLaterTitle'))}">${ICONS.plus}</button>
       <button class="chip-action chip-close" data-action="close" data-tab-ids="${ids}" data-tab-id="${tab.id}" title="${esc(t('closeTabTitle'))}">${ICONS.close}</button>
     </div>
   </div>`;
@@ -441,10 +503,12 @@ function groupTemplate(group, index) {
   const duplicateBadge = duplicates
     ? `<span class="open-tabs-badge open-tabs-badge-duplicate">${plural('Duplicate', duplicates)}</span>` : '';
   const editing = uiState.editingKey === group.key;
+  const pinned = isPinned(group.key);
   const titleHtml = editing
     ? `<input class="group-name-input" data-group="${index}" value="${esc(uiState.editingDraft)}" maxlength="${MAX_NAME_LENGTH}" placeholder="${esc(group.defaultLabel)}" title="${esc(describeGroup(group))}" aria-label="${esc(t('customNameAria', group.defaultLabel))}" autocomplete="off">`
     : `<span class="mission-name" title="${esc(describeGroup(group))}">${esc(group.label)}</span>
-      <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="${esc(t('renameGroupTitle'))}" aria-label="${esc(t('renameAria', group.label))}">${ICONS.edit}</button>`;
+      <button class="group-rename-btn" data-action="edit-group" data-group="${index}" title="${esc(t('renameGroupTitle'))}" aria-label="${esc(t('renameAria', group.label))}">${ICONS.edit}</button>
+      <button class="group-pin-btn" data-action="toggle-pin" data-group="${index}" aria-pressed="${pinned}" title="${esc(t(pinned ? 'unpinGroupTitle' : 'pinGroupTitle'))}">${ICONS.pin}</button>`;
   return `<article class="mission-card domain-card${duplicates ? ' has-duplicates' : ''}" data-group="${index}">
     <div class="mission-content">
       <div class="mission-top"><div class="mission-title">${titleHtml}</div>${duplicateBadge}<button class="action-btn close-tabs" data-action="close-group" data-group="${index}">${ICONS.close}${t('closeGroup')}</button></div>
@@ -455,6 +519,36 @@ function groupTemplate(group, index) {
       ${duplicates ? `<div class="actions"><button class="action-btn" data-action="dedupe" data-group="${index}">${t('closeDuplicates', duplicates)}</button></div>` : ''}
     </div>
   </article>`;
+}
+
+function pinnedChipTemplate(group) {
+  // One compact pill per pinned group. Clicking opens an inline preview popover
+  // listing every tab in the group; selecting a tab in the popover focuses it.
+  // The chip itself never switches tabs — that decision belongs to the
+  // popover so the user stays on the dashboard while browsing.
+  const tab = group.tabs[0];
+  if (!tab) return '';
+  const expanded = uiState.pinnedPopoverKey === group.key;
+  return `<button class="pinned-chip clickable" data-action="toggle-pinned-popover" data-group-key="${esc(group.key)}" aria-expanded="${expanded}" aria-controls="pinned-popover" title="${esc(describeGroup(group))}" aria-label="${esc(t('pinnedChipAria', group.label, group.tabs.length))}">
+    ${faviconImage(tab, 'pinned-chip-favicon')}
+    <span class="pinned-chip-label">${esc(group.label)}</span>
+    <span class="pinned-chip-count">${group.tabs.length}</span>
+  </button>`;
+}
+
+function pinnedPopoverTemplate() {
+  // Renders only when a pinned chip is open. The list comes from lastGroups
+  // (the same view render() just produced), so tab ids always match the DOM
+  // the user is looking at — no race with concurrent refreshes.
+  if (!uiState.pinnedPopoverKey) return '';
+  const group = lastGroups.find(g => g.key === uiState.pinnedPopoverKey);
+  if (!group || !group.tabs.length) return '';
+  return `<div class="pinned-popover" id="pinned-popover" role="dialog" aria-label="${esc(t('pinnedPopoverAria', group.label))}">
+    <ul class="pinned-popover-list">${group.tabs.map(tab => `<li><button class="pinned-popover-tab clickable" data-action="focus-from-popover" data-tab-id="${tab.id}" title="${esc(displayTitle(tab))}">
+      ${faviconImage(tab, 'pinned-popover-favicon')}
+      <span class="pinned-popover-tab-label">${esc(displayTitle(tab))}</span>
+    </button></li>`).join('')}</ul>
+  </div>`;
 }
 
 function savedItemTemplate(item) {
@@ -494,6 +588,7 @@ function buildBackup() {
     exportedAt: new Date().toISOString(),
     tabs: dataState.tabs.filter(isWebTab).map(tab => ({ url: tab.url, title: tab.title || tab.url })),
     customGroupNames: { ...dataState.customGroupNames },
+    pinnedGroupKeys: [...dataState.pinnedGroupKeys],
     readingList: dataState.readingList.map(item => ({
       url: item.url,
       title: item.title || item.url,
@@ -505,6 +600,7 @@ function buildBackup() {
       theme: dataState.theme,
       styleId: currentStyleId(),
       layout: LAYOUTS.includes(dataState.layout) ? dataState.layout : 'multi',
+      columnOrder: COLUMN_ORDERS.includes(dataState.columnOrder) ? dataState.columnOrder : 'tabs-list',
       unreadExpanded: uiState.unreadExpanded,
       readExpanded: uiState.readExpanded,
     },
@@ -545,15 +641,24 @@ function normaliseBackup(value) {
     }
   }
 
+  // Pinned keys are an additive field — older backups omit it, in which case
+  // we restore an empty list. Dedupe + drop non-string entries so the storage
+  // round-trip can never widen the set via a malformed JSON.
+  const pinnedGroupKeys = Array.isArray(value.pinnedGroupKeys)
+    ? Array.from(new Set(value.pinnedGroupKeys.filter(k => typeof k === 'string' && k)))
+    : [];
+
   const settings = value.settings && typeof value.settings === 'object' ? value.settings : {};
   return {
     tabs,
     readingList,
     customGroupNames: names,
+    pinnedGroupKeys,
     settings: {
       theme: settings.theme === 'dark' || settings.theme === 'light' ? settings.theme : null,
       styleId: STYLES.some(style => style.id === settings.styleId) ? settings.styleId : DEFAULT_STYLE_ID,
       layout: LAYOUTS.includes(settings.layout) ? settings.layout : 'multi',
+      columnOrder: COLUMN_ORDERS.includes(settings.columnOrder) ? settings.columnOrder : 'tabs-list',
       unreadExpanded: settings.unreadExpanded !== false,
       readExpanded: settings.readExpanded === true,
     },
@@ -577,7 +682,7 @@ function exportBackup() {
   link.download = `tabulor-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 0);
-  uiState.backupOpen = false;
+  uiState.settingsOpen = false;
   render();
   showToast(t('backupExported'));
 }
@@ -616,18 +721,29 @@ async function importBackup(file) {
   }
 
   dataState.customGroupNames = { ...dataState.customGroupNames, ...backup.customGroupNames };
+  // Merge: union of local + imported pinned keys preserves whichever side
+  // pinned something the other side didn't. Order follows local first, then
+  // imported keys that aren't already present.
+  {
+    const merged = new Set(dataState.pinnedGroupKeys);
+    for (const k of backup.pinnedGroupKeys) merged.add(k);
+    dataState.pinnedGroupKeys = [...merged];
+  }
   dataState.theme = backup.settings.theme;
   dataState.styleId = backup.settings.styleId;
   dataState.layout = backup.settings.layout;
+  dataState.columnOrder = backup.settings.columnOrder;
   uiState.unreadExpanded = backup.settings.unreadExpanded;
   uiState.readExpanded = backup.settings.readExpanded;
-  uiState.backupOpen = false;
+  uiState.settingsOpen = false;
   try {
     await chrome.storage.local.set({
       [STORAGE_KEYS.customGroupNames]: dataState.customGroupNames,
+      [STORAGE_KEYS.pinnedGroupKeys]: dataState.pinnedGroupKeys,
       [STORAGE_KEYS.theme]: dataState.theme,
       [STORAGE_KEYS.styleId]: dataState.styleId,
       [STORAGE_KEYS.layout]: dataState.layout,
+      [STORAGE_KEYS.columnOrder]: dataState.columnOrder,
       [STORAGE_KEYS.unreadExpanded]: uiState.unreadExpanded,
       [STORAGE_KEYS.readExpanded]: uiState.readExpanded,
     });
@@ -646,14 +762,70 @@ async function importBackup(file) {
   showToast(summary, readingListFailures > 0);
 }
 
-function backupControlsTemplate() {
-  return `<div class="backup-controls">
-    <button class="action-btn backup-toggle" data-action="toggle-backup" aria-expanded="${uiState.backupOpen}" title="${esc(t('backUpDashboardTitle'))}">${t('backup')}</button>
-    ${uiState.backupOpen ? `<div class="backup-menu" role="menu">
-      <button class="backup-menu-item" data-action="export-backup" role="menuitem">${t('exportJson')}</button>
-      <button class="backup-menu-item" data-action="import-backup" role="menuitem">${t('importJson')}</button>
+function settingsControlsTemplate() {
+  // Settings menu: gear icon opens a flat menu with the previously top-level
+  // backup actions on top and the new custom-background actions below a
+  // divider. Stays in `uiState` (not persisted) — same lifecycle as the
+  // prior backup menu it absorbed.
+  return `<div class="settings-controls">
+    <button class="action-btn settings-toggle" data-action="toggle-settings" aria-expanded="${uiState.settingsOpen}" title="${esc(t('settingsTitle'))}" aria-label="${esc(t('settingsTitle'))}">${ICONS.gear}</button>
+    ${uiState.settingsOpen ? `<div class="settings-menu" role="menu">
+      <button class="settings-menu-item" data-action="export-backup" role="menuitem">${t('exportJson')}</button>
+      <button class="settings-menu-item" data-action="import-backup" role="menuitem">${t('importJson')}</button>
+      <div class="settings-menu-divider" role="separator"></div>
+      <button class="settings-menu-item" data-action="choose-background" role="menuitem">${t('backgroundChoose')}</button>
+      <button class="settings-menu-item" data-action="clear-background" role="menuitem">${t('backgroundClear')}</button>
     </div>` : ''}
   </div>`;
+}
+
+// Background image is read as a data URL via FileReader and stored under
+// `backgroundImage` in chrome.storage.local. Earlier versions used the File
+// System Access API + IndexedDB handle, but Chrome serializes the handle's
+// permission state as 'prompt' across page sessions, and `requestPermission`
+// is only callable inside a user gesture — a no-go on page load. The data-URL
+// approach trades the 10 MB chrome.storage.local quota for a no-permission
+// flow that survives reloads trivially. No size limit is enforced; quota
+// errors surface as toasts.
+async function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function applyBackgroundFromDataUrl(dataUrl) {
+  const body = document.body;
+  body.style.backgroundImage = `url(${dataUrl})`;
+  body.style.backgroundSize = 'cover';
+  body.style.backgroundPosition = 'center';
+  body.style.backgroundRepeat = 'no-repeat';
+  body.style.backgroundAttachment = 'fixed';
+  body.dataset.bg = 'custom';
+}
+
+function clearBodyBackground() {
+  const body = document.body;
+  body.style.backgroundImage = '';
+  body.style.backgroundSize = '';
+  body.style.backgroundPosition = '';
+  body.style.backgroundRepeat = '';
+  body.style.backgroundAttachment = '';
+  body.dataset.bg = '';
+}
+
+async function loadBackgroundImage() {
+  // Run on init; doesn't block render. The data URL is fully self-contained
+  // so there is no permission / cross-session state to worry about. If the
+  // key isn't set, we fall back to the default paper background silently.
+  if (typeof chrome === 'undefined' || !chrome.storage) return;  // test stub
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.backgroundImage);
+  const dataUrl = stored[STORAGE_KEYS.backgroundImage];
+  if (typeof dataUrl === 'string' && dataUrl) {
+    applyBackgroundFromDataUrl(dataUrl);
+  }
 }
 
 function languageSwitcherTemplate() {
@@ -709,13 +881,18 @@ function render() {
   }).join('');
   const containerClass = uiState.firstRender ? 'container' : 'container no-anim';
   const layout = LAYOUTS.includes(dataState.layout) ? dataState.layout : 'multi';
+  // Pinned row: a pinned group whose tabs have all closed still lives in
+  // dataState.pinnedGroupKeys (so the user's choice survives), but we drop it
+  // from the visible row until a tab reappears under that key. The very-top
+  // dashboard slot stays free for the future URL-level pinning.
+  const pinnedGroups = groups.filter(g => isPinned(g.key) && g.tabs.length > 0);
 
   app.innerHTML = `<div class="${containerClass}">
-    <div class="dashboard-columns">
+    <div class="dashboard-columns${dataState.columnOrder === 'list-tabs' ? ' column-flip' : ''}">
       ${groups.length ? `<section class="active-section"><div class="section-header section-header-rows">
-        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button>${backupControlsTemplate()}</div>
+        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="action-btn theme-toggle" data-action="toggle-theme" title="${esc(t('themeToggleTitle'))}" aria-label="${esc(t('themeToggleTitle'))}">${currentTheme() === 'dark' ? ICONS.iconMoon : ICONS.iconSun}</button><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${settingsControlsTemplate()}</div>
         <div class="section-header-row"><h2>${t('openTabs')}</h2><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button></div></div>
-      </div><div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      </div>${pinnedGroups.length ? `<div class="pinned-row" aria-label="${esc(t('pinnedRowAria'))}">${pinnedGroups.map(pinnedChipTemplate).join('')}</div>${pinnedPopoverTemplate()}` : ''}<div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
     </div>
     ${languageSwitcherTemplate()}
@@ -734,7 +911,7 @@ function focusEditorIfNeeded() {
 
 function emptyTemplate() {
   return `<section class="active-section"><div class="section-header section-header-rows">
-    <div class="section-header-row">${backupControlsTemplate()}</div>
+    <div class="section-header-row">${settingsControlsTemplate()}</div>
     <div class="section-header-row"><h2>${t('openTabs')}</h2></div>
   </div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">${t('emptyTitle')}</div><div class="empty-subtitle">${t('emptySubtitle')}</div></div></section>`;
 }
@@ -785,7 +962,7 @@ async function loadState() {
 
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ [STORAGE_KEYS.readingListMirror]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.unreadExpanded]: true, [STORAGE_KEYS.readExpanded]: false, [STORAGE_KEYS.layout]: 'multi' }),
+    chrome.storage.local.get({ [STORAGE_KEYS.readingListMirror]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.pinnedGroupKeys]: [], [STORAGE_KEYS.unreadExpanded]: true, [STORAGE_KEYS.readExpanded]: false, [STORAGE_KEYS.layout]: 'multi', [STORAGE_KEYS.columnOrder]: 'tabs-list' }),
   ]);
   dataState.tabs = tabs;
   // The mirror is the immediate render source; refreshReadingList() overwrites
@@ -801,9 +978,15 @@ async function loadState() {
       .map(([key, value]) => [key, tidyName(value)])
       .filter(([key, value]) => key && value),
   );
+  // Pinned group keys: dedupe defensively in case storage was tampered with,
+  // and drop anything that isn't a non-empty string.
+  dataState.pinnedGroupKeys = Array.isArray(stored.pinnedGroupKeys)
+    ? Array.from(new Set(stored.pinnedGroupKeys.filter(k => typeof k === 'string' && k)))
+    : [];
   uiState.unreadExpanded = stored[STORAGE_KEYS.unreadExpanded] !== false;
   uiState.readExpanded = !!stored[STORAGE_KEYS.readExpanded];
   dataState.layout = LAYOUTS.includes(stored[STORAGE_KEYS.layout]) ? stored[STORAGE_KEYS.layout] : 'multi';
+  dataState.columnOrder = COLUMN_ORDERS.includes(stored[STORAGE_KEYS.columnOrder]) ? stored[STORAGE_KEYS.columnOrder] : 'tabs-list';
   uiState.language = resolveLanguage(stored[STORAGE_KEYS.uiLanguage]);
 }
 
@@ -817,6 +1000,11 @@ async function refresh() {
     await loadState();
     applyTheme();
     render();
+    // Background image is independent of the chrome.storage.local state;
+    // kick it off here so the image shows up on first paint if a handle
+    // is in IndexedDB. We don't await — a permission re-prompt shouldn't
+    // block the dashboard.
+    loadBackgroundImage().catch(error => console.error('[tabulor] background load failed', error));
     await refreshReadingList();
     registerReadingListListeners();
   })();
@@ -959,7 +1147,17 @@ const tabActions = {
     try {
       await chrome.readingList.addEntry({ url: tab.url, title: displayTitle(tab), hasBeenRead: false });
     } catch (error) {
-      console.error('[tabulor] addEntry failed', error);
+      // chrome.readingList.addEntry rejects with "Duplicate URL" when the URL is
+      // already on the Reading list. Surface that as an info toast (the user's
+      // intent — "this is on my list" — is already satisfied; we leave the tab
+      // open so they can decide what to do with it). Other errors fall through
+      // to a generic toast + console.error so the cause is still investigable.
+      if (/duplicate url/i.test(error.message || '')) {
+        showToast(t('saveAlreadyInReadingList'));
+      } else {
+        console.error('[tabulor] addEntry failed', error);
+        showToast(t('saveFailed'), true);
+      }
       return;
     }
     await closeWithEffect(parseIds(el.dataset.tabIds));
@@ -1017,6 +1215,46 @@ const uiActions = {
     const group = groupAt(el.dataset.group);
     if (group) openEditor(group);
   },
+  'toggle-pin': async (el, event) => {
+    // Pin / unpin a group by domain key. Pinned keys persist even when the
+    // group has no live tabs so the user's choice survives a session wipe;
+    // the row simply hides empty pinned groups until a tab reappears.
+    event.stopPropagation();
+    const group = groupAt(el.dataset.group);
+    if (!group) return;
+    const keys = dataState.pinnedGroupKeys;
+    const idx = keys.indexOf(group.key);
+    if (idx >= 0) keys.splice(idx, 1); else keys.push(group.key);
+    // Unpinning a group whose popover is open collapses the popover too — the
+    // chip disappears on the next render anyway.
+    if (uiState.pinnedPopoverKey === group.key) uiState.pinnedPopoverKey = null;
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.pinnedGroupKeys]: [...keys] });
+    } catch (error) {
+      console.error('[tabulor] pinnedGroupKeys write failed', error);
+    }
+    render();
+  },
+  'toggle-pinned-popover': (el, event) => {
+    // Same chip → close; different chip → switch. Always renders so the
+    // chip's aria-expanded and the popover's presence stay in sync.
+    event.stopPropagation();
+    const key = el.dataset.groupKey;
+    if (!key) return;
+    uiState.pinnedPopoverKey = uiState.pinnedPopoverKey === key ? null : key;
+    render();
+  },
+  'focus-from-popover': async el => {
+    // Focus the chosen tab and dismiss the popover in one motion. We close
+    // the popover *before* awaiting chrome.tabs.update so the dashboard
+    // re-renders without the popover overlay while the focus switch happens.
+    const tab = findTab(el.dataset.tabId);
+    uiState.pinnedPopoverKey = null;
+    render();
+    if (!tab) return;
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+  },
   'set-style': (el) => {
     const nextId = el.dataset.style;
     if (!STYLES.some(s => s.id === nextId)) return;
@@ -1037,13 +1275,48 @@ const uiActions = {
     chrome.storage.local.set({ [STORAGE_KEYS.layout]: dataState.layout });
     render();
   },
-  'toggle-backup': () => {
-    uiState.backupOpen = !uiState.backupOpen;
+  'flip-columns': () => {
+    // Mirror the two main dashboard columns horizontally. The CSS
+    // `.dashboard-columns.column-flip { flex-direction: row-reverse; }` plus
+    // its narrow-viewport `column-reverse` variant handle the actual swap;
+    // we only persist the preference and re-render so the button's
+    // aria-pressed and the column class stay in sync.
+    dataState.columnOrder = dataState.columnOrder === 'tabs-list' ? 'list-tabs' : 'tabs-list';
+    chrome.storage.local.set({ [STORAGE_KEYS.columnOrder]: dataState.columnOrder });
     render();
+  },
+  'toggle-theme': () => {
+    // Strict 2-state toggle: dataState.theme resolves null to OS via
+    // currentTheme(), so the first click from auto mode "exits" auto by
+    // setting an explicit value (the opposite of OS). Subsequent clicks
+    // alternate light ↔ dark. No UI path back to auto — clearing requires
+    // editing storage or importing a backup without the theme key.
+    const current = currentTheme();
+    dataState.theme = current === 'dark' ? 'light' : 'dark';
+    chrome.storage.local.set({ [STORAGE_KEYS.theme]: dataState.theme });
+    applyTheme();
+    render();
+  },
+  'toggle-settings': () => {
+    uiState.settingsOpen = !uiState.settingsOpen;
+    render();
+  },
+  'choose-background': () => {
+    // Trigger the hidden <input type="file">. The actual read + store runs
+    // in the change handler registered below. Closing the menu first so the
+    // picker doesn't sit on top of the dimmed overlay.
+    uiState.settingsOpen = false;
+    render();
+    $('#backgroundFileInput')?.click();
+  },
+  'clear-background': async () => {
+    await chrome.storage.local.remove(STORAGE_KEYS.backgroundImage);
+    clearBodyBackground();
+    showToast(t('backgroundCleared'));
   },
   'export-backup': () => exportBackup(),
   'import-backup': () => {
-    uiState.backupOpen = false;
+    uiState.settingsOpen = false;
     render();
     $('#backupFileInput')?.click();
   },
@@ -1067,10 +1340,22 @@ document.addEventListener('error', event => {
 }, true);
 
 document.addEventListener('click', async event => {
-  const backupControls = $('.backup-controls');
-  if (uiState.backupOpen && backupControls && !backupControls.contains(event.target)) {
-    uiState.backupOpen = false;
+  const settingsControls = $('.settings-controls');
+  if (uiState.settingsOpen && settingsControls && !settingsControls.contains(event.target)) {
+    uiState.settingsOpen = false;
     render();
+  }
+  // Dismiss the pinned-popover on any click that lands outside both the
+  // popover and its owning chip. Clicking *inside* the popover or on the chip
+  // itself falls through so the data-action handler can run.
+  if (uiState.pinnedPopoverKey) {
+    const popover = $('.pinned-popover');
+    const insidePopover = popover && popover.contains(event.target);
+    const onChip = event.target.closest('.pinned-chip');
+    if (!insidePopover && !onChip) {
+      uiState.pinnedPopoverKey = null;
+      render();
+    }
   }
   const el = event.target.closest('[data-action]');
   if (!el || !actions[el.dataset.action]) return;
@@ -1090,11 +1375,38 @@ document.addEventListener('input', event => {
   // plan; no input handlers attach to the Reading list section today.
 });
 
-document.addEventListener('change', event => {
+document.addEventListener('change', async event => {
   const input = event.target;
-  if (!input.matches('#backupFileInput') || !input.files?.[0]) return;
-  importBackup(input.files[0]).catch(error => console.error('[tabulor]', error));
-  input.value = '';
+  if (input.matches('#backupFileInput') && input.files?.[0]) {
+    importBackup(input.files[0]).catch(error => console.error('[tabulor]', error));
+    input.value = '';
+    return;
+  }
+  if (input.matches('#backgroundFileInput') && input.files?.[0]) {
+    const file = input.files[0];
+    input.value = '';  // reset so picking the same file again re-fires
+    // 5 MB cap on the picked file. The data URL is ~33% larger than the
+    // binary (~6.7 MB), so this leaves headroom inside chrome.storage.local's
+    // default 10 MB quota for the rest of the extension's state (customGroupNames,
+    // pinnedGroupKeys, readingListMirror, etc.).
+    if (file.size > 5 * 1024 * 1024) {
+      showToast(t('backgroundTooLarge'), true);
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      // Drop the previous cached image before writing the new one. This frees
+      // the storage quota up front, so a near-quota pick doesn't end with the
+      // new data URL failing while the old one still occupies the space.
+      await chrome.storage.local.remove(STORAGE_KEYS.backgroundImage);
+      await chrome.storage.local.set({ [STORAGE_KEYS.backgroundImage]: dataUrl });
+      applyBackgroundFromDataUrl(dataUrl);
+      showToast(t('backgroundSet'));
+    } catch (error) {
+      console.error('[tabulor] background image read failed', error);
+      showToast(t('backgroundFailed', error.message || String(error)), true);
+    }
+  }
 });
 
 function renderReadList() {
@@ -1104,9 +1416,9 @@ function renderReadList() {
 }
 
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && uiState.backupOpen) {
+  if (event.key === 'Escape' && uiState.settingsOpen) {
     event.preventDefault();
-    uiState.backupOpen = false;
+    uiState.settingsOpen = false;
     render();
     return;
   }
@@ -1142,6 +1454,23 @@ chrome.storage.onChanged.addListener((changes, area) => {
   // Reading-list reactivity flows through chrome.readingList.onEntry*
   // events, not the storage mirror.
   if (STORAGE_KEYS.customGroupNames in changes) scheduleRefresh();
+  // pinnedGroupKeys can change from another tab via the same extension; pull
+  // the new array in and re-render so the row and per-card star buttons stay
+  // in sync without re-running the heavier loadState path.
+  if (STORAGE_KEYS.pinnedGroupKeys in changes) {
+    const next = changes[STORAGE_KEYS.pinnedGroupKeys].newValue;
+    dataState.pinnedGroupKeys = Array.isArray(next)
+      ? Array.from(new Set(next.filter(k => typeof k === 'string' && k)))
+      : [];
+    render();
+  }
+  // columnOrder flips from another tab — just re-render so the flex class
+  // updates; the value itself was already validated in loadState.
+  if (STORAGE_KEYS.columnOrder in changes) {
+    const next = changes[STORAGE_KEYS.columnOrder].newValue;
+    dataState.columnOrder = COLUMN_ORDERS.includes(next) ? next : 'tabs-list';
+    render();
+  }
 });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   // Only the OS-level signal flows through here; if the user has an explicit

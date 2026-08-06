@@ -38,31 +38,20 @@ The agent will walk you through it. Takes about 1 minute.
 - **Two selectable visual styles** — Classic rounded / Terminal sharp + monospace
 - **English and Simplified Chinese** — two-track dictionary (`_locales/` + `LOCALES`); an `EN / 中` switcher sits at the bottom-left of the dashboard
 - **Backup and restore** — export the dashboard to a versioned JSON file; import merges with existing data
+- **Custom background image** — use your own image as the dashboard backdrop (a work in progress, still being refined)
 - **100% local** — local storage, no server or account
 
 ---
 
 ## What's new
 
-### v0.2.5
+### v0.2.6
 
-**New features**
-
-- **English and Simplified Chinese.** Bottom-left `EN / 中` switcher. The choice is persisted afterwards; Reading-list timestamps, plurals, and the rest of the UI re-localize on switch.
-- **Backup and restore.** `Backup` menu next to `Close all` exports a versioned JSON snapshot of the dashboard and re-imports it as a merge with existing data.
-
-**UI changes**
-
-- **Active section header split into two rows.** Line 1: controls (theme switcher, layout toggle, Backup); line 2: `Open tabs` heading (24px) + count / close-all.
-- **Group card "Close all" inline with the title.** Per-group close button moves into the title bar; long titles truncate; grid is a fixed two columns.
-- **Icon refresh.** White outline on Terminal Blue Sea. The icon now appears centered at the top of the README.
-
-**Package slimming**
-
-- **Smaller extension package.** `extension/` from ~1.4 MB to 220 KB (-84%).
-  - Toolbar icon no longer follows the system color scheme.
-  - Noto Sans SC fallback dropped; terminal stack uses system CJK fonts.
-  - The new-tab page itself still follows the system's light / dark mode.
+- **Pin a group.** Pin a group to a compact top row of chips; clicking a chip previews every tab in the group without leaving the dashboard.
+- **Mirror flip columns.** A swap button flips the two main columns between `Open tabs | Reading list` and `Reading list | Open tabs`.
+- **Manual light/dark toggle.** A sun/moon button overrides the system theme when you want a specific mode.
+- **Custom dashboard background image.** Use your own image as the dashboard backdrop (a work in progress, still being refined).
+- **Settings menu.** A gear icon gathers backup and background options in one place.
 
 ## Roadmap
 
