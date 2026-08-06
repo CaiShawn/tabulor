@@ -886,13 +886,18 @@ function render() {
   // from the visible row until a tab reappears under that key. The very-top
   // dashboard slot stays free for the future URL-level pinning.
   const pinnedGroups = groups.filter(g => isPinned(g.key) && g.tabs.length > 0);
+  // Shared first header row: the populated and empty branches both render
+  // the same controls bar (style segments, theme, layout, column-flip,
+  // settings). Previously the empty branch only rendered settings, hiding
+  // the other toggles when no tabs were open.
+  const controlsRow = `<div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="action-btn theme-toggle" data-action="toggle-theme" title="${esc(t('themeToggleTitle'))}" aria-label="${esc(t('themeToggleTitle'))}">${currentTheme() === 'dark' ? ICONS.iconMoon : ICONS.iconSun}</button><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${settingsControlsTemplate()}</div>`;
 
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns${dataState.columnOrder === 'list-tabs' ? ' column-flip' : ''}">
       ${groups.length ? `<section class="active-section"><div class="section-header section-header-rows">
-        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="action-btn theme-toggle" data-action="toggle-theme" title="${esc(t('themeToggleTitle'))}" aria-label="${esc(t('themeToggleTitle'))}">${currentTheme() === 'dark' ? ICONS.iconMoon : ICONS.iconSun}</button><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${settingsControlsTemplate()}</div>
+        ${controlsRow}
         <div class="section-header-row"><h2>${t('openTabs')}</h2><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button></div></div>
-      </div>${pinnedGroups.length ? `<div class="pinned-row" aria-label="${esc(t('pinnedRowAria'))}">${pinnedGroups.map(pinnedChipTemplate).join('')}</div>${pinnedPopoverTemplate()}` : ''}<div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
+      </div>${pinnedGroups.length ? `<div class="pinned-row" aria-label="${esc(t('pinnedRowAria'))}">${pinnedGroups.map(pinnedChipTemplate).join('')}</div>${pinnedPopoverTemplate()}` : ''}<div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate(controlsRow)}
       ${savedTemplate()}
     </div>
     ${languageSwitcherTemplate()}
@@ -909,9 +914,9 @@ function focusEditorIfNeeded() {
   input.select();
 }
 
-function emptyTemplate() {
+function emptyTemplate(controlsRow) {
   return `<section class="active-section"><div class="section-header section-header-rows">
-    <div class="section-header-row">${settingsControlsTemplate()}</div>
+    ${controlsRow}
     <div class="section-header-row"><h2>${t('openTabs')}</h2></div>
   </div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">${t('emptyTitle')}</div><div class="empty-subtitle">${t('emptySubtitle')}</div></div></section>`;
 }

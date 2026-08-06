@@ -69,6 +69,15 @@ async function loadAppInVm(initialStorage = {}, initialReadingList = [], initial
     assert.strictEqual(ctx.__test.dataState.readingListError, false);
     assert.strictEqual(JSON.stringify(ctx.__test.dataState.customGroupNames), '{}');
     assert.strictEqual(JSON.stringify(ctx.__test.lastGroups), '[]');
+    // Bug fix: empty-state header must render the full controls bar, not
+    // just settings. Previously theme/style/layout/column-flip toggles
+    // vanished when there were no missions.
+    const html = ctx.__app.innerHTML;
+    assert.ok(html.includes('theme-segments'), 'empty state renders style segments');
+    assert.ok(html.includes('data-action="toggle-theme"'), 'empty state renders theme toggle');
+    assert.ok(html.includes('data-action="toggle-layout"'), 'empty state renders layout toggle');
+    assert.ok(html.includes('data-action="flip-columns"'), 'empty state renders column-flip toggle');
+    assert.ok(html.includes('data-action="toggle-settings"'), 'empty state renders settings toggle');
     console.log('smoke: empty storage -> lastGroups is empty');
   }
 
