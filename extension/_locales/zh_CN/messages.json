@@ -48,6 +48,7 @@
   "pinnedChipAria": { "message": "打开 $NAME$（$N$）", "placeholders": { "name": { "content": "$1" }, "n": { "content": "$2" } } },
   "pinnedPopoverAria": { "message": "$NAME$ 中的标签", "placeholders": { "name": { "content": "$1" } } },
   "flipColumnsTitle": { "message": "镜像翻转" },
+  "themeToggleTitle": { "message": "主题" },
   "closeTabTitle": { "message": "关闭此标签" },
   "markAsReadTitle": { "message": "标记为已读" },
   "dismissTitle": { "message": "移除" },

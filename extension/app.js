@@ -113,6 +113,7 @@ const LOCALES = {
     pinnedChipAria: (name, n) => `Open ${name} (${n})`,
     pinnedPopoverAria: (name) => `Tabs in ${name}`,
     flipColumnsTitle: 'Mirror flip',
+    themeToggleTitle: 'Theme',
     closeTabTitle: 'Close this tab',
     markAsReadTitle: 'Mark as read',
     dismissTitle: 'Dismiss',
@@ -177,6 +178,7 @@ const LOCALES = {
     pinnedChipAria: (name, n) => `打开 ${name}（${n}）`,
     pinnedPopoverAria: (name) => `${name} 中的标签`,
     flipColumnsTitle: '镜像翻转',
+    themeToggleTitle: '主题',
     closeTabTitle: '关闭此标签',
     markAsReadTitle: '标记为已读',
     dismissTitle: '移除',
@@ -814,7 +816,7 @@ function render() {
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns${dataState.columnOrder === 'list-tabs' ? ' column-flip' : ''}">
       ${groups.length ? `<section class="active-section"><div class="section-header section-header-rows">
-        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${backupControlsTemplate()}</div>
+        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="action-btn theme-toggle" data-action="toggle-theme" title="${esc(t('themeToggleTitle'))}" aria-label="${esc(t('themeToggleTitle'))}">${currentTheme() === 'dark' ? ICONS.iconMoon : ICONS.iconSun}</button><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${backupControlsTemplate()}</div>
         <div class="section-header-row"><h2>${t('openTabs')}</h2><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button></div></div>
       </div>${pinnedGroups.length ? `<div class="pinned-row" aria-label="${esc(t('pinnedRowAria'))}">${pinnedGroups.map(pinnedChipTemplate).join('')}</div>${pinnedPopoverTemplate()}` : ''}<div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
@@ -1202,6 +1204,18 @@ const uiActions = {
     // aria-pressed and the column class stay in sync.
     dataState.columnOrder = dataState.columnOrder === 'tabs-list' ? 'list-tabs' : 'tabs-list';
     chrome.storage.local.set({ [STORAGE_KEYS.columnOrder]: dataState.columnOrder });
+    render();
+  },
+  'toggle-theme': () => {
+    // Strict 2-state toggle: dataState.theme resolves null to OS via
+    // currentTheme(), so the first click from auto mode "exits" auto by
+    // setting an explicit value (the opposite of OS). Subsequent clicks
+    // alternate light ↔ dark. No UI path back to auto — clearing requires
+    // editing storage or importing a backup without the theme key.
+    const current = currentTheme();
+    dataState.theme = current === 'dark' ? 'light' : 'dark';
+    chrome.storage.local.set({ [STORAGE_KEYS.theme]: dataState.theme });
+    applyTheme();
     render();
   },
   'toggle-backup': () => {
