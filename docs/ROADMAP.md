@@ -15,6 +15,9 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 - **Tab pin.** Pin a group to a compact chip row at the top of the active section; clicking a chip opens an inline preview popover listing every tab in the group, so picking a tab never switches the dashboard away. Persisted via `pinnedGroupKeys` in storage; the very-top dashboard slot stays free for the future per-tab pinning.
 - **Horizontal mirror flip.** Swap icon next to the layout-toggle flips `.dashboard-columns` between `Open tabs | Reading list` and `Reading list | Open tabs`; preference stored in `columnOrder`; narrow-viewport stack uses `column-reverse`. Vertical flip is intentionally out of scope.
 - **Manual light/dark toggle.** Sun/moon icon next to the column-flip-toggle overrides the OS-level `prefers-color-scheme` signal. Default follows OS via the existing `dataState.theme: null`; first click exits auto and sets the opposite of the current OS theme, subsequent clicks alternate light ↔ dark. No UI path back to auto — clearing the `theme` storage key restores the OS-follow default.
+- **Custom dashboard background image.** Gear icon at the rightmost of the section header opens a Settings menu (absorbing the previous top-level Backup) with "Choose image…" (File System Access API, `showOpenFilePicker`, image MIME types only) and "Clear background". The picked `FileSystemFileHandle` is stored in IndexedDB (`tabulor-bg.handles.background`); image bytes never enter extension storage. On every load the handle is re-read and a fresh blob URL is applied to `body { background: ... center / cover no-repeat fixed }`. No size limit (file stays on disk); cards retain solid `--card` for readability.
+
+​		FSA fail -> local storage
 
 ### Group-as-core refactor (with dependent layout + ordering)
 
@@ -24,8 +27,5 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 ## Backlog
 
 > Pending work, highest priority first.
-
-### Custom dashboard background image
-User-supplied image as the dashboard background. Open: source (file upload vs URL), storage (data URL size vs external URL; `chrome.storage.local` quota), interaction with theming (overlay/blur/opacity for content legibility).
 
 > This file tracks the product only — agent configuration changes belong in `.pi`(do not trackd by git).
