@@ -11,7 +11,7 @@ const BACKUP_SCHEMA_VERSION = 1;
 // cache, not a peer. We do not listen for our own mirror writes in
 // `storage.onChanged` — reactivity for external Reading-list changes comes
 // from `chrome.readingList.onEntryAdded/Updated/Removed`.
-const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', pinnedGroupKeys: 'pinnedGroupKeys', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout', uiLanguage: 'uiLanguage' };
+const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', pinnedGroupKeys: 'pinnedGroupKeys', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout', columnOrder: 'columnOrder', uiLanguage: 'uiLanguage' };
 // Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
 // (Fira Code, saturated colors, sharp corners). Style is independent of the
 // light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
@@ -21,6 +21,7 @@ const STYLES = [
 ];
 const DEFAULT_STYLE_ID = 'classic';
 const LAYOUTS = ['multi', 'single'];
+const COLUMN_ORDERS = ['tabs-list', 'list-tabs'];
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -44,6 +45,11 @@ const dataState = {
   theme: null,
   styleId: DEFAULT_STYLE_ID,
   layout: 'multi',
+  // Horizontal order of the two main dashboard columns. 'tabs-list' =
+  // Open tabs on the left, Reading list on the right (default). 'list-tabs'
+  // mirrors horizontally. Vertical flip is intentionally out of scope; the
+  // narrow-viewport stacking order follows the same `columnOrder` choice.
+  columnOrder: 'tabs-list',
 };
 
 const uiState = {
@@ -105,6 +111,8 @@ const LOCALES = {
     unpinGroupTitle: 'Unpin',
     pinnedRowAria: 'Pinned',
     pinnedChipAria: (name, n) => `Open ${name} (${n})`,
+    pinnedPopoverAria: (name) => `Tabs in ${name}`,
+    flipColumnsTitle: 'Mirror flip',
     closeTabTitle: 'Close this tab',
     markAsReadTitle: 'Mark as read',
     dismissTitle: 'Dismiss',
@@ -167,6 +175,8 @@ const LOCALES = {
     unpinGroupTitle: '取消置顶',
     pinnedRowAria: '已置顶',
     pinnedChipAria: (name, n) => `打开 ${name}（${n}）`,
+    pinnedPopoverAria: (name) => `${name} 中的标签`,
+    flipColumnsTitle: '镜像翻转',
     closeTabTitle: '关闭此标签',
     markAsReadTitle: '标记为已读',
     dismissTitle: '移除',
@@ -241,6 +251,10 @@ const ICONS = {
   check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>`,
   plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>`,
   pin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a2 2 0 0 1 2-2h1a1 1 0 0 0 0-2H6a1 1 0 0 0 0 2h1a2 2 0 0 1 2 2z"/></svg>`,
+  // Two opposing horizontal arrows stacked vertically — the canonical "swap"
+  // affordance, distinct from the 2x2/3-rows ICONS.layout so the two
+  // adjacent header toggles read as a pair without competing visually.
+  swap: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8H15"/><path d="M15 5l3 3-3 3"/><path d="M21 16H9"/><path d="M9 13l-3 3 3 3"/></svg>`,
   layout: `<span class="layout-icon"><svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="9" height="9"/><rect x="17" y="4" width="9" height="9"/><rect x="4" y="17" width="9" height="9"/><rect x="17" y="17" width="9" height="9"/></svg><span>/</span><svg viewBox="0 0 24 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="22" height="4"/><rect x="4" y="13" width="22" height="4"/><rect x="4" y="22" width="22" height="4"/></svg></span>`,
 };
 
@@ -566,6 +580,7 @@ function buildBackup() {
       theme: dataState.theme,
       styleId: currentStyleId(),
       layout: LAYOUTS.includes(dataState.layout) ? dataState.layout : 'multi',
+      columnOrder: COLUMN_ORDERS.includes(dataState.columnOrder) ? dataState.columnOrder : 'tabs-list',
       unreadExpanded: uiState.unreadExpanded,
       readExpanded: uiState.readExpanded,
     },
@@ -623,6 +638,7 @@ function normaliseBackup(value) {
       theme: settings.theme === 'dark' || settings.theme === 'light' ? settings.theme : null,
       styleId: STYLES.some(style => style.id === settings.styleId) ? settings.styleId : DEFAULT_STYLE_ID,
       layout: LAYOUTS.includes(settings.layout) ? settings.layout : 'multi',
+      columnOrder: COLUMN_ORDERS.includes(settings.columnOrder) ? settings.columnOrder : 'tabs-list',
       unreadExpanded: settings.unreadExpanded !== false,
       readExpanded: settings.readExpanded === true,
     },
@@ -696,6 +712,7 @@ async function importBackup(file) {
   dataState.theme = backup.settings.theme;
   dataState.styleId = backup.settings.styleId;
   dataState.layout = backup.settings.layout;
+  dataState.columnOrder = backup.settings.columnOrder;
   uiState.unreadExpanded = backup.settings.unreadExpanded;
   uiState.readExpanded = backup.settings.readExpanded;
   uiState.backupOpen = false;
@@ -706,6 +723,7 @@ async function importBackup(file) {
       [STORAGE_KEYS.theme]: dataState.theme,
       [STORAGE_KEYS.styleId]: dataState.styleId,
       [STORAGE_KEYS.layout]: dataState.layout,
+      [STORAGE_KEYS.columnOrder]: dataState.columnOrder,
       [STORAGE_KEYS.unreadExpanded]: uiState.unreadExpanded,
       [STORAGE_KEYS.readExpanded]: uiState.readExpanded,
     });
@@ -794,9 +812,9 @@ function render() {
   const pinnedGroups = groups.filter(g => isPinned(g.key) && g.tabs.length > 0);
 
   app.innerHTML = `<div class="${containerClass}">
-    <div class="dashboard-columns">
+    <div class="dashboard-columns${dataState.columnOrder === 'list-tabs' ? ' column-flip' : ''}">
       ${groups.length ? `<section class="active-section"><div class="section-header section-header-rows">
-        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button>${backupControlsTemplate()}</div>
+        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${backupControlsTemplate()}</div>
         <div class="section-header-row"><h2>${t('openTabs')}</h2><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button></div></div>
       </div>${pinnedGroups.length ? `<div class="pinned-row" aria-label="${esc(t('pinnedRowAria'))}">${pinnedGroups.map(pinnedChipTemplate).join('')}</div>${pinnedPopoverTemplate()}` : ''}<div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
@@ -868,7 +886,7 @@ async function loadState() {
 
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get({ [STORAGE_KEYS.readingListMirror]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.pinnedGroupKeys]: [], [STORAGE_KEYS.unreadExpanded]: true, [STORAGE_KEYS.readExpanded]: false, [STORAGE_KEYS.layout]: 'multi' }),
+    chrome.storage.local.get({ [STORAGE_KEYS.readingListMirror]: [], [STORAGE_KEYS.theme]: null, [STORAGE_KEYS.styleId]: DEFAULT_STYLE_ID, [STORAGE_KEYS.customGroupNames]: {}, [STORAGE_KEYS.pinnedGroupKeys]: [], [STORAGE_KEYS.unreadExpanded]: true, [STORAGE_KEYS.readExpanded]: false, [STORAGE_KEYS.layout]: 'multi', [STORAGE_KEYS.columnOrder]: 'tabs-list' }),
   ]);
   dataState.tabs = tabs;
   // The mirror is the immediate render source; refreshReadingList() overwrites
@@ -892,6 +910,7 @@ async function loadState() {
   uiState.unreadExpanded = stored[STORAGE_KEYS.unreadExpanded] !== false;
   uiState.readExpanded = !!stored[STORAGE_KEYS.readExpanded];
   dataState.layout = LAYOUTS.includes(stored[STORAGE_KEYS.layout]) ? stored[STORAGE_KEYS.layout] : 'multi';
+  dataState.columnOrder = COLUMN_ORDERS.includes(stored[STORAGE_KEYS.columnOrder]) ? stored[STORAGE_KEYS.columnOrder] : 'tabs-list';
   uiState.language = resolveLanguage(stored[STORAGE_KEYS.uiLanguage]);
 }
 
@@ -1175,6 +1194,16 @@ const uiActions = {
     chrome.storage.local.set({ [STORAGE_KEYS.layout]: dataState.layout });
     render();
   },
+  'flip-columns': () => {
+    // Mirror the two main dashboard columns horizontally. The CSS
+    // `.dashboard-columns.column-flip { flex-direction: row-reverse; }` plus
+    // its narrow-viewport `column-reverse` variant handle the actual swap;
+    // we only persist the preference and re-render so the button's
+    // aria-pressed and the column class stay in sync.
+    dataState.columnOrder = dataState.columnOrder === 'tabs-list' ? 'list-tabs' : 'tabs-list';
+    chrome.storage.local.set({ [STORAGE_KEYS.columnOrder]: dataState.columnOrder });
+    render();
+  },
   'toggle-backup': () => {
     uiState.backupOpen = !uiState.backupOpen;
     render();
@@ -1300,6 +1329,13 @@ chrome.storage.onChanged.addListener((changes, area) => {
     dataState.pinnedGroupKeys = Array.isArray(next)
       ? Array.from(new Set(next.filter(k => typeof k === 'string' && k)))
       : [];
+    render();
+  }
+  // columnOrder flips from another tab — just re-render so the flex class
+  // updates; the value itself was already validated in loadState.
+  if (STORAGE_KEYS.columnOrder in changes) {
+    const next = changes[STORAGE_KEYS.columnOrder].newValue;
+    dataState.columnOrder = COLUMN_ORDERS.includes(next) ? next : 'tabs-list';
     render();
   }
 });
