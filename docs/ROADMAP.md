@@ -12,9 +12,7 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 > Discussion that has not yet been promoted to a backlog entry, latest first.
 
 - **Search + keyboard-first.** Fuzzy-search open tabs by title/URL to jump straight to one; make the dashboard keyboard-operable (search, navigate groups, rename, move tabs) for a terminal-style, hands-on-keys flow.
-- **Per-tag pin/star system.** A lightweight "favorite tags" row pinned to the top, separate from the main grouped list.
-- **Flip dashboard columns horizontally.** Add a layout option to switch between `Open tabs → Reading list` and `Reading list → Open tabs`; persist the preference with the other layout settings.
-- **Manual light/dark toggle.** Theme currently auto-follows `prefers-color-scheme` (with a stored `theme` override + offscreen listener driving the toolbar icon); add a manual light/dark switcher.
+- **Tab pin.** Pin a group to a compact chip row at the top of the active section; clicking a chip opens an inline preview popover listing every tab in the group, so picking a tab never switches the dashboard away. Persisted via `pinnedGroupKeys` in storage; the very-top dashboard slot stays free for the future per-tab pinning.
 
 ### Group-as-core refactor (with dependent layout + ordering)
 
@@ -24,6 +22,12 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 ## Backlog
 
 > Pending work, highest priority first.
+
+### Flip dashboard columns horizontally
+Add a layout option to switch between `Open tabs → Reading list` and `Reading list → Open tabs`; persist the preference with the other layout settings.
+
+### Manual light/dark toggle
+Theme currently auto-follows `prefers-color-scheme` (with a stored `theme` override + offscreen listener driving the toolbar icon); add a manual light/dark switcher.
 
 ### Custom dashboard background image
 User-supplied image as the dashboard background. Open: source (file upload vs URL), storage (data URL size vs external URL; `chrome.storage.local` quota), interaction with theming (overlay/blur/opacity for content legibility).
