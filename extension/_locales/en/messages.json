@@ -56,7 +56,6 @@
   "backgroundCleared": { "message": "Background cleared" },
   "backgroundTooLarge": { "message": "Image too large (max 5 MB)" },
   "backgroundFailed": { "message": "Background failed: $MSG$", "placeholders": { "msg": { "content": "$1" } } },
-  "backgroundPermissionDenied": { "message": "Permission denied" },
   "closeTabTitle": { "message": "Close this tab" },
   "markAsReadTitle": { "message": "Mark as read" },
   "dismissTitle": { "message": "Dismiss" },

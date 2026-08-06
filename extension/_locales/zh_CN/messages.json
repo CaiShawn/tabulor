@@ -56,7 +56,6 @@
   "backgroundCleared": { "message": "背景已清除" },
   "backgroundTooLarge": { "message": "图片过大（最大 5 MB）" },
   "backgroundFailed": { "message": "背景加载失败：$MSG$", "placeholders": { "msg": { "content": "$1" } } },
-  "backgroundPermissionDenied": { "message": "权限被拒" },
   "closeTabTitle": { "message": "关闭此标签" },
   "markAsReadTitle": { "message": "标记为已读" },
   "dismissTitle": { "message": "移除" },
