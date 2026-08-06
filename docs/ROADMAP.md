@@ -14,6 +14,7 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 - **Search + keyboard-first.** Fuzzy-search open tabs by title/URL to jump straight to one; make the dashboard keyboard-operable (search, navigate groups, rename, move tabs) for a terminal-style, hands-on-keys flow.
 - **Tab pin.** Pin a group to a compact chip row at the top of the active section; clicking a chip opens an inline preview popover listing every tab in the group, so picking a tab never switches the dashboard away. Persisted via `pinnedGroupKeys` in storage; the very-top dashboard slot stays free for the future per-tab pinning.
 - **Horizontal mirror flip.** Swap icon next to the layout-toggle flips `.dashboard-columns` between `Open tabs | Reading list` and `Reading list | Open tabs`; preference stored in `columnOrder`; narrow-viewport stack uses `column-reverse`. Vertical flip is intentionally out of scope.
+- **Manual light/dark toggle.** Sun/moon icon next to the column-flip-toggle overrides the OS-level `prefers-color-scheme` signal. Default follows OS via the existing `dataState.theme: null`; first click exits auto and sets the opposite of the current OS theme, subsequent clicks alternate light ↔ dark. No UI path back to auto — clearing the `theme` storage key restores the OS-follow default.
 
 ### Group-as-core refactor (with dependent layout + ordering)
 
@@ -23,9 +24,6 @@ Shipped work history lives in `docs/v0.2-dev.md`, not here.
 ## Backlog
 
 > Pending work, highest priority first.
-
-### Manual light/dark toggle
-Theme currently auto-follows `prefers-color-scheme` (with a stored `theme` override + offscreen listener driving the toolbar icon); add a manual light/dark switcher.
 
 ### Custom dashboard background image
 User-supplied image as the dashboard background. Open: source (file upload vs URL), storage (data URL size vs external URL; `chrome.storage.local` quota), interaction with theming (overlay/blur/opacity for content legibility).
