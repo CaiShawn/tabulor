@@ -11,7 +11,7 @@ const BACKUP_SCHEMA_VERSION = 1;
 // cache, not a peer. We do not listen for our own mirror writes in
 // `storage.onChanged` — reactivity for external Reading-list changes comes
 // from `chrome.readingList.onEntryAdded/Updated/Removed`.
-const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', pinnedGroupKeys: 'pinnedGroupKeys', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout', columnOrder: 'columnOrder', uiLanguage: 'uiLanguage' };
+const STORAGE_KEYS = { readingListMirror: 'readingListMirror', theme: 'theme', styleId: 'styleId', customGroupNames: 'customGroupNames', pinnedGroupKeys: 'pinnedGroupKeys', unreadExpanded: 'unreadExpanded', readExpanded: 'readExpanded', layout: 'openTabsLayout', columnOrder: 'columnOrder', backgroundImage: 'backgroundImage', uiLanguage: 'uiLanguage' };
 // Two visual styles: 'classic' (the original ink-on-paper look) and 'terminal'
 // (Fira Code, saturated colors, sharp corners). Style is independent of the
 // light/dark theme: terminal-light is Blue Sea, terminal-dark is Pistachio.
@@ -59,9 +59,12 @@ const uiState = {
   // Lives in uiState (not persisted) because it's a transient view state — a
   // page reload starts with everything closed.
   pinnedPopoverKey: null,
+  // Whether the settings menu (gear icon) is open. Renamed from backupOpen
+  // when the gear absorbed the backup items; behaviour (click-outside closes)
+  // is unchanged.
+  settingsOpen: false,
   unreadExpanded: true,
   readExpanded: false,
-  backupOpen: false,
   // Resolved by resolveLanguage() at load: 'en' or 'zh_CN'. Persisted on
   // user toggle via chrome.storage.local; the very first load falls back
   // to chrome.i18n.getUILanguage() when nothing is stored.
@@ -114,6 +117,14 @@ const LOCALES = {
     pinnedPopoverAria: (name) => `Tabs in ${name}`,
     flipColumnsTitle: 'Mirror flip',
     themeToggleTitle: 'Theme',
+    settingsTitle: 'Settings',
+    backgroundChoose: 'Choose image…',
+    backgroundClear: 'Clear background',
+    backgroundSet: 'Background set',
+    backgroundCleared: 'Background cleared',
+    backgroundTooLarge: 'Image too large (max 5 MB)',
+    backgroundFailed: (msg) => `Background failed: ${msg}`,
+    backgroundPermissionDenied: 'Permission denied',
     closeTabTitle: 'Close this tab',
     markAsReadTitle: 'Mark as read',
     dismissTitle: 'Dismiss',
@@ -179,6 +190,14 @@ const LOCALES = {
     pinnedPopoverAria: (name) => `${name} 中的标签`,
     flipColumnsTitle: '镜像翻转',
     themeToggleTitle: '主题',
+    settingsTitle: '设置',
+    backgroundChoose: '选择图片…',
+    backgroundClear: '清除背景',
+    backgroundSet: '背景已设置',
+    backgroundCleared: '背景已清除',
+    backgroundTooLarge: '图片过大（最大 5 MB）',
+    backgroundFailed: (msg) => `背景加载失败：${msg}`,
+    backgroundPermissionDenied: '权限被拒',
     closeTabTitle: '关闭此标签',
     markAsReadTitle: '标记为已读',
     dismissTitle: '移除',
@@ -258,6 +277,7 @@ const ICONS = {
   // adjacent header toggles read as a pair without competing visually.
   swap: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8H15"/><path d="M15 5l3 3-3 3"/><path d="M21 16H9"/><path d="M9 13l-3 3 3 3"/></svg>`,
   layout: `<span class="layout-icon"><svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="9" height="9"/><rect x="17" y="4" width="9" height="9"/><rect x="4" y="17" width="9" height="9"/><rect x="17" y="17" width="9" height="9"/></svg><span>/</span><svg viewBox="0 0 24 30" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="22" height="4"/><rect x="4" y="13" width="22" height="4"/><rect x="4" y="22" width="22" height="4"/></svg></span>`,
+  gear: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
 };
 
 const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
@@ -664,7 +684,7 @@ function exportBackup() {
   link.download = `tabulor-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 0);
-  uiState.backupOpen = false;
+  uiState.settingsOpen = false;
   render();
   showToast(t('backupExported'));
 }
@@ -717,7 +737,7 @@ async function importBackup(file) {
   dataState.columnOrder = backup.settings.columnOrder;
   uiState.unreadExpanded = backup.settings.unreadExpanded;
   uiState.readExpanded = backup.settings.readExpanded;
-  uiState.backupOpen = false;
+  uiState.settingsOpen = false;
   try {
     await chrome.storage.local.set({
       [STORAGE_KEYS.customGroupNames]: dataState.customGroupNames,
@@ -744,14 +764,70 @@ async function importBackup(file) {
   showToast(summary, readingListFailures > 0);
 }
 
-function backupControlsTemplate() {
-  return `<div class="backup-controls">
-    <button class="action-btn backup-toggle" data-action="toggle-backup" aria-expanded="${uiState.backupOpen}" title="${esc(t('backUpDashboardTitle'))}">${t('backup')}</button>
-    ${uiState.backupOpen ? `<div class="backup-menu" role="menu">
-      <button class="backup-menu-item" data-action="export-backup" role="menuitem">${t('exportJson')}</button>
-      <button class="backup-menu-item" data-action="import-backup" role="menuitem">${t('importJson')}</button>
+function settingsControlsTemplate() {
+  // Settings menu: gear icon opens a flat menu with the previously top-level
+  // backup actions on top and the new custom-background actions below a
+  // divider. Stays in `uiState` (not persisted) — same lifecycle as the
+  // prior backup menu it absorbed.
+  return `<div class="settings-controls">
+    <button class="action-btn settings-toggle" data-action="toggle-settings" aria-expanded="${uiState.settingsOpen}" title="${esc(t('settingsTitle'))}" aria-label="${esc(t('settingsTitle'))}">${ICONS.gear}</button>
+    ${uiState.settingsOpen ? `<div class="settings-menu" role="menu">
+      <button class="settings-menu-item" data-action="export-backup" role="menuitem">${t('exportJson')}</button>
+      <button class="settings-menu-item" data-action="import-backup" role="menuitem">${t('importJson')}</button>
+      <div class="settings-menu-divider" role="separator"></div>
+      <button class="settings-menu-item" data-action="choose-background" role="menuitem">${t('backgroundChoose')}</button>
+      <button class="settings-menu-item" data-action="clear-background" role="menuitem">${t('backgroundClear')}</button>
     </div>` : ''}
   </div>`;
+}
+
+// Background image is read as a data URL via FileReader and stored under
+// `backgroundImage` in chrome.storage.local. Earlier versions used the File
+// System Access API + IndexedDB handle, but Chrome serializes the handle's
+// permission state as 'prompt' across page sessions, and `requestPermission`
+// is only callable inside a user gesture — a no-go on page load. The data-URL
+// approach trades the 10 MB chrome.storage.local quota for a no-permission
+// flow that survives reloads trivially. No size limit is enforced; quota
+// errors surface as toasts.
+async function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function applyBackgroundFromDataUrl(dataUrl) {
+  const body = document.body;
+  body.style.backgroundImage = `url(${dataUrl})`;
+  body.style.backgroundSize = 'cover';
+  body.style.backgroundPosition = 'center';
+  body.style.backgroundRepeat = 'no-repeat';
+  body.style.backgroundAttachment = 'fixed';
+  body.dataset.bg = 'custom';
+}
+
+function clearBodyBackground() {
+  const body = document.body;
+  body.style.backgroundImage = '';
+  body.style.backgroundSize = '';
+  body.style.backgroundPosition = '';
+  body.style.backgroundRepeat = '';
+  body.style.backgroundAttachment = '';
+  body.dataset.bg = '';
+}
+
+async function loadBackgroundImage() {
+  // Run on init; doesn't block render. The data URL is fully self-contained
+  // so there is no permission / cross-session state to worry about. If the
+  // key isn't set, we fall back to the default paper background silently.
+  if (typeof chrome === 'undefined' || !chrome.storage) return;  // test stub
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.backgroundImage);
+  const dataUrl = stored[STORAGE_KEYS.backgroundImage];
+  if (typeof dataUrl === 'string' && dataUrl) {
+    applyBackgroundFromDataUrl(dataUrl);
+  }
 }
 
 function languageSwitcherTemplate() {
@@ -816,7 +892,7 @@ function render() {
   app.innerHTML = `<div class="${containerClass}">
     <div class="dashboard-columns${dataState.columnOrder === 'list-tabs' ? ' column-flip' : ''}">
       ${groups.length ? `<section class="active-section"><div class="section-header section-header-rows">
-        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="action-btn theme-toggle" data-action="toggle-theme" title="${esc(t('themeToggleTitle'))}" aria-label="${esc(t('themeToggleTitle'))}">${currentTheme() === 'dark' ? ICONS.iconMoon : ICONS.iconSun}</button><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${backupControlsTemplate()}</div>
+        <div class="section-header-row"><div class="theme-segments" role="group" aria-label="${esc(t('styleGroupAria'))}">${styleSegments}</div><button class="action-btn theme-toggle" data-action="toggle-theme" title="${esc(t('themeToggleTitle'))}" aria-label="${esc(t('themeToggleTitle'))}">${currentTheme() === 'dark' ? ICONS.iconMoon : ICONS.iconSun}</button><button class="layout-toggle action-btn" data-action="toggle-layout" aria-pressed="${layout === 'single'}" title="${esc(t(layout === 'single' ? 'layoutTitleMulti' : 'layoutTitleSingle'))}" aria-label="${esc(t(layout === 'single' ? 'layoutAriaMulti' : 'layoutAriaSingle'))}">${ICONS.layout}</button><button class="action-btn column-flip-toggle" data-action="flip-columns" aria-pressed="${dataState.columnOrder === 'list-tabs'}" title="${esc(t('flipColumnsTitle'))}" aria-label="${esc(t('flipColumnsTitle'))}">${ICONS.swap}</button>${settingsControlsTemplate()}</div>
         <div class="section-header-row"><h2>${t('openTabs')}</h2><div class="section-count"><span class="section-count-text">${plural('Group', groups.length)}</span><span class="section-dot">·</span><button class="action-btn close-tabs" data-action="close-all">${ICONS.close}${t('closeAllTabs', realTabs.length)}</button></div></div>
       </div>${pinnedGroups.length ? `<div class="pinned-row" aria-label="${esc(t('pinnedRowAria'))}">${pinnedGroups.map(pinnedChipTemplate).join('')}</div>${pinnedPopoverTemplate()}` : ''}<div class="missions${layout === 'single' ? ' layout-single' : ''}">${groups.map(groupTemplate).join('')}</div></section>` : emptyTemplate()}
       ${savedTemplate()}
@@ -837,7 +913,7 @@ function focusEditorIfNeeded() {
 
 function emptyTemplate() {
   return `<section class="active-section"><div class="section-header section-header-rows">
-    <div class="section-header-row">${backupControlsTemplate()}</div>
+    <div class="section-header-row">${settingsControlsTemplate()}</div>
     <div class="section-header-row"><h2>${t('openTabs')}</h2></div>
   </div><div class="missions-empty-state"><div class="empty-checkmark">✓</div><div class="empty-title">${t('emptyTitle')}</div><div class="empty-subtitle">${t('emptySubtitle')}</div></div></section>`;
 }
@@ -926,6 +1002,11 @@ async function refresh() {
     await loadState();
     applyTheme();
     render();
+    // Background image is independent of the chrome.storage.local state;
+    // kick it off here so the image shows up on first paint if a handle
+    // is in IndexedDB. We don't await — a permission re-prompt shouldn't
+    // block the dashboard.
+    loadBackgroundImage().catch(error => console.error('[tabulor] background load failed', error));
     await refreshReadingList();
     registerReadingListListeners();
   })();
@@ -1218,13 +1299,26 @@ const uiActions = {
     applyTheme();
     render();
   },
-  'toggle-backup': () => {
-    uiState.backupOpen = !uiState.backupOpen;
+  'toggle-settings': () => {
+    uiState.settingsOpen = !uiState.settingsOpen;
     render();
+  },
+  'choose-background': () => {
+    // Trigger the hidden <input type="file">. The actual read + store runs
+    // in the change handler registered below. Closing the menu first so the
+    // picker doesn't sit on top of the dimmed overlay.
+    uiState.settingsOpen = false;
+    render();
+    $('#backgroundFileInput')?.click();
+  },
+  'clear-background': async () => {
+    await chrome.storage.local.remove(STORAGE_KEYS.backgroundImage);
+    clearBodyBackground();
+    showToast(t('backgroundCleared'));
   },
   'export-backup': () => exportBackup(),
   'import-backup': () => {
-    uiState.backupOpen = false;
+    uiState.settingsOpen = false;
     render();
     $('#backupFileInput')?.click();
   },
@@ -1248,9 +1342,9 @@ document.addEventListener('error', event => {
 }, true);
 
 document.addEventListener('click', async event => {
-  const backupControls = $('.backup-controls');
-  if (uiState.backupOpen && backupControls && !backupControls.contains(event.target)) {
-    uiState.backupOpen = false;
+  const settingsControls = $('.settings-controls');
+  if (uiState.settingsOpen && settingsControls && !settingsControls.contains(event.target)) {
+    uiState.settingsOpen = false;
     render();
   }
   // Dismiss the pinned-popover on any click that lands outside both the
@@ -1283,11 +1377,38 @@ document.addEventListener('input', event => {
   // plan; no input handlers attach to the Reading list section today.
 });
 
-document.addEventListener('change', event => {
+document.addEventListener('change', async event => {
   const input = event.target;
-  if (!input.matches('#backupFileInput') || !input.files?.[0]) return;
-  importBackup(input.files[0]).catch(error => console.error('[tabulor]', error));
-  input.value = '';
+  if (input.matches('#backupFileInput') && input.files?.[0]) {
+    importBackup(input.files[0]).catch(error => console.error('[tabulor]', error));
+    input.value = '';
+    return;
+  }
+  if (input.matches('#backgroundFileInput') && input.files?.[0]) {
+    const file = input.files[0];
+    input.value = '';  // reset so picking the same file again re-fires
+    // 5 MB cap on the picked file. The data URL is ~33% larger than the
+    // binary (~6.7 MB), so this leaves headroom inside chrome.storage.local's
+    // default 10 MB quota for the rest of the extension's state (customGroupNames,
+    // pinnedGroupKeys, readingListMirror, etc.).
+    if (file.size > 5 * 1024 * 1024) {
+      showToast(t('backgroundTooLarge'), true);
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      // Drop the previous cached image before writing the new one. This frees
+      // the storage quota up front, so a near-quota pick doesn't end with the
+      // new data URL failing while the old one still occupies the space.
+      await chrome.storage.local.remove(STORAGE_KEYS.backgroundImage);
+      await chrome.storage.local.set({ [STORAGE_KEYS.backgroundImage]: dataUrl });
+      applyBackgroundFromDataUrl(dataUrl);
+      showToast(t('backgroundSet'));
+    } catch (error) {
+      console.error('[tabulor] background image read failed', error);
+      showToast(t('backgroundFailed', error.message || String(error)), true);
+    }
+  }
 });
 
 function renderReadList() {
@@ -1297,9 +1418,9 @@ function renderReadList() {
 }
 
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && uiState.backupOpen) {
+  if (event.key === 'Escape' && uiState.settingsOpen) {
     event.preventDefault();
-    uiState.backupOpen = false;
+    uiState.settingsOpen = false;
     render();
     return;
   }
